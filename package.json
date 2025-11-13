@@ -4,9 +4,9 @@
     "name": "@rccyx"
   },
   "bugs": {
-    "url": "https://github.com/rccyx/scrypt/issues"
+    "url": "https://github.com/rccyx/fpyx/issues"
   },
-  "description": "Minimal, dependency-free password hashing library built on Node's native crypto.scrypt. Timing-safe, typed, and production-ready.",
+  "description": "Hardened, cross-runtime request fingerprinting for anonymous rate limiting. Zero dependencies, runs everywhere: Node.js 18+, Bun, Deno, Cloudflare Workers, edge runtimes, and browsers. Fast FNV-1a hashing with trusted IP detection.",
   "devDependencies": {
     "@cspell/dict-cryptocurrencies": "5.0.0",
     "@rollup/plugin-replace": "5.0.5",
@@ -65,21 +65,42 @@
     "LICENSE",
     "package.json"
   ],
-  "homepage": "https://rccyx.com",
+  "homepage": "https://github.com/rccyx/fpyx#readme",
   "keywords": [
-    "scrypt",
-    "crypto",
+    "rate-limiting",
+    "fingerprint",
+    "fingerprinting",
+    "request-fingerprint",
+    "anonymous",
+    "fnv",
+    "fnv1a",
     "hash",
-    "password",
-    "security",
-    "encryption",
+    "hashing",
+    "cloudflare-workers",
+    "edge-runtime",
+    "cloudflare",
+    "vercel-edge",
+    "netlify-edge",
+    "fastly",
+    "fly-io",
+    "bun",
+    "deno",
+    "nodejs",
     "typescript",
-    "nodejs"
+    "zero-dependencies",
+    "cross-runtime",
+    "owasp",
+    "api-security",
+    "ddos-protection",
+    "quota",
+    "throttle",
+    "ip-detection",
+    "user-agent"
   ],
   "license": "MIT",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
-  "name": "@rccyx/scrypt",
+  "name": "fpyx",
   "packageManager": "pnpm@9.12.0",
   "peerDependencies": {
     "typescript": ">=5.0.0"
@@ -87,7 +108,7 @@
   "private": false,
   "repository": {
     "type": "git",
-    "url": "https://github.com/rccyx/scrypt.git"
+    "url": "https://github.com/rccyx/fpyx.git"
   },
   "scripts": {
     "build": "pnpm build:node",

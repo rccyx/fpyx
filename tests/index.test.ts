@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { fingerprintRequest, fnv1a64Hex } from '../src/index.js';
+import { fingerprint, fnv1a64Hex } from '../src/index.js';
 
 const encoder = new TextEncoder();
 
@@ -21,7 +21,7 @@ describe('fingerprintRequest', () => {
       },
     });
 
-    const result = fingerprintRequest(request, {
+    const result = fingerprint(request, {
       includeMethod: true,
       includePath: true,
     });
@@ -50,7 +50,7 @@ describe('fingerprintRequest', () => {
     headers.set('x-forwarded-for', '198.51.100.8, 198.51.100.9');
     headers.set('fly-client-ip', '203.0.113.5');
 
-    const result = fingerprintRequest({ headers }, {});
+    const result = fingerprint({ headers }, {});
     expect(result.traits.ip).toBe('203.0.113.5');
   });
 
@@ -61,10 +61,7 @@ describe('fingerprintRequest', () => {
       'for="[2001:db8:cafe::17]:4711";proto=https;by=203.0.113.43'
     );
 
-    const result = fingerprintRequest(
-      { headers },
-      { ipHeaders: ['forwarded'] }
-    );
+    const result = fingerprint({ headers }, { ipHeaders: ['forwarded'] });
     expect(result.traits.ip).toBe('2001:db8:cafe::17');
   });
 
@@ -72,10 +69,7 @@ describe('fingerprintRequest', () => {
     const headers = new Headers();
     headers.set('Forwarded', 'for=unknown');
 
-    const result = fingerprintRequest(
-      { headers },
-      { ipHeaders: ['forwarded'] }
-    );
+    const result = fingerprint({ headers }, { ipHeaders: ['forwarded'] });
     expect(result.traits.ip).toBeNull();
   });
 
@@ -87,7 +81,7 @@ describe('fingerprintRequest', () => {
       },
     });
 
-    const result = fingerprintRequest(request, {
+    const result = fingerprint(request, {
       includePath: true,
       pathNormalizer: (path) => path.replace(/\d+/g, ':id'),
     });
@@ -107,7 +101,7 @@ describe('fingerprintRequest', () => {
         .map((byte) => byte.toString(16).padStart(2, '0'))
         .join('');
 
-    const result = fingerprintRequest(request, {
+    const result = fingerprint(request, {
       hashFn,
     });
 
