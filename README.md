@@ -8,7 +8,7 @@ Zero dependencies. Zero I/O. Zero crypto APIs. Works everywhere JavaScript runs:
 
 fpyx builds stable, compact identifiers from HTTP request traits, trusted client IP, User-Agent, Accept-Language, and optional method/path, then hashes them with FNV-1a 64-bit for fast, cheap rate limiting keys.
 
-This is for rate limiting and quota buckets, not identity or authentication. Follows OWASP API4:2023 guidance: enforce limits server-side, trust only IP headers your own proxy sets, and return HTTP 429 when limits are exceeded.
+This is for rate limiting and quota buckets, not identity or authentication.
 
 ## Installation
 
@@ -103,7 +103,7 @@ FNV-1a is extremely fast:
 A typical API or edge worker can handle millions of requests per day without breaking a sweat. FNV-1a is so cheap you won't notice it in your profiler.
 
 ### Security Model
-This library follows OWASP API4:2023 guidance for preventing resource exhaustion attacks.
+This library follows OWASP guidance for preventing resource exhaustion attacks.
 
 What it does:
 - Combines coarse traits (IP, User-Agent, Accept-Language) into a stable identifier for rate limiting buckets
@@ -376,9 +376,7 @@ export const DEFAULT_IP_HEADERS: readonly string[] = [
 
 Specifies which headers to trust for client IP detection, in precedence order. The first header found wins.
 
-Why this matters: Client-supplied IP headers like `X-Forwarded-For` are trivial to spoof. You must trust only headers your own proxy sets.
-
-Default behavior: Uses `DEFAULT_IP_HEADERS`, which checks platform-specific headers first (Cloudflare, Fastly, Fly.io, Akamai), then standard headers.
+This matters since client-supplied IP headers like `X-Forwarded-For` are trivial to spoof. You must trust only headers your own proxy sets. The default behavior uses `DEFAULT_IP_HEADERS`, which checks platform-specific headers first (Cloudflare, Fastly, Fly.io, Akamai), then standard headers.
 
 When to override:
 
@@ -397,7 +395,8 @@ If you're using the standard Forwarded header:
 fingerprint(req, { ipHeaders: ['forwarded'] });
 ```
 
-Critical: Configure your proxy to overwrite client-supplied headers. Without this, attackers can bypass rate limits by spoofing IPs.
+> [!IMPORTANT]
+> Configure your proxy to overwrite client-supplied headers. Without this, attackers can bypass rate limits by spoofing IPs.
 
 Cloudflare automatically sets cf-connecting-ip. [Docs](https://developers.cloudflare.com/fundamentals/reference/http-headers/)
 
