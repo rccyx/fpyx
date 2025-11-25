@@ -102,22 +102,6 @@ FNV-1a is extremely fast:
 
 A typical API or edge worker can handle millions of requests per day without breaking a sweat. FNV-1a is so cheap you won't notice it in your profiler.
 
-### Security Model
-This library follows OWASP guidance for preventing resource exhaustion attacks.
-
-What it does:
-- Combines coarse traits (IP, User-Agent, Accept-Language) into a stable identifier for rate limiting buckets
-
-What it doesn't do:
-- Identity tracking, user authentication, unique fingerprinting, or cryptographic verification
-
-Critical security considerations:
-- Trust your proxy: Only use IP headers your edge proxy sets. Configure your proxy to overwrite client-supplied headers
-- Expect collisions: Shared IPs (NAT, VPNs, corporate networks) will collide. That's acceptable for rate limiting
-- Not for identity: Do not use fingerprints to track individual users or as an authentication factor
-- Enforce server-side: Always validate limits in your backend. Return HTTP 429 when exceeded
-- Non-cryptographic: FNV-1a is fast and deterministic, but not cryptographic. If you need cryptographic integrity or unforgeability, swap hashFn for a keyed HMAC
-
 ### Configuration
 
 ```typescript
