@@ -1,10 +1,7 @@
-/**
- * Client IP extraction and parsing utilities.
- *
- * @packageDocumentation
- */
-
 import { INVALID_IP_TOKENS } from './constants';
+import { Optional } from './types';
+
+const IPV4_WITH_PORT_RE = /^(?:\d{1,3}\.){3}\d{1,3}:\d+$/;
 
 /**
  * Extracts the client IP from request headers based on precedence order.
@@ -13,11 +10,12 @@ import { INVALID_IP_TOKENS } from './constants';
  * @param precedence - Ordered list of header names to check.
  * @returns The extracted IP address or null if not found.
  * @internal
+ * @see {@link https://datatracker.ietf.org/doc/html/rfc7239 RFC 7239: Forwarded HTTP Extension}
  */
 export function extractClientIp(
   headers: Headers,
   precedence: ReadonlyArray<string>
-): string | null {
+): Optional<string> {
   for (const headerName of precedence) {
     const value = headers.get(headerName);
     if (value === null) {
@@ -38,6 +36,7 @@ export function extractClientIp(
       normalizedName === 'x-forwarded-for'
         ? takeFirstListEntry(value)
         : value.trim();
+
     const ip = normalizeIpCandidate(candidate);
     if (ip !== null) {
       return ip;
@@ -53,8 +52,9 @@ export function extractClientIp(
  * @param value - The Forwarded header value.
  * @returns The extracted IP or null.
  * @internal
+ * @see {@link https://datatracker.ietf.org/doc/html/rfc7239 RFC 7239: Forwarded HTTP Extension}
  */
-function parseForwarded(value: string): string | null {
+function parseForwarded(value: string): Optional<string> {
   const entries = value.split(',');
   for (const entry of entries) {
     const directives = entry.trim().split(';');
@@ -84,17 +84,20 @@ function parseForwarded(value: string): string | null {
  * @param value - The raw identifier value.
  * @returns The cleaned IP or null.
  * @internal
+ * @see {@link https://datatracker.ietf.org/doc/html/rfc7239 RFC 7239: Forwarded HTTP Extension}
  */
-function cleanForwardedIdentifier(value: string): string | null {
+function cleanForwardedIdentifier(value: string): Optional<string> {
   const unquoted =
     value.startsWith('"') && value.endsWith('"') && value.length >= 2
       ? value.slice(1, -1)
       : value;
+
   const trimmed = unquoted.trim();
   if (trimmed === '') {
     return null;
   }
 
+  // node ABNF uses square brackets for IPv6, with optional :port after the closing bracket.
   if (trimmed.startsWith('[')) {
     const closingIndex = trimmed.indexOf(']');
     if (closingIndex > 1) {
@@ -103,11 +106,11 @@ function cleanForwardedIdentifier(value: string): string | null {
     return null;
   }
 
-  if (trimmed.includes(':') && trimmed.includes('.')) {
-    const colonIndex = trimmed.lastIndexOf(':');
-    if (colonIndex > -1) {
-      return trimmed.slice(0, colonIndex);
-    }
+  // need to only strip ports for plain IPv4:port.
+  // Do NOT use "contains ':' and '.'" heuristics,
+  // because IPv6 forms like ::ffff:203.0.113.10 contain dots and colons.
+  if (IPV4_WITH_PORT_RE.test(trimmed)) {
+    return trimmed.slice(0, trimmed.lastIndexOf(':'));
   }
 
   return trimmed;
@@ -126,13 +129,13 @@ function takeFirstListEntry(value: string): string {
 }
 
 /**
- * Normalizes and validates an IP candidate, stripping ports if present.
+ * Normalizes and validates an IP candidate, stripping ports/brackets where relevant.
  *
  * @param value - The IP candidate.
  * @returns The normalized IP or null if invalid.
  * @internal
  */
-function normalizeIpCandidate(value: string | null): string | null {
+function normalizeIpCandidate(value: Optional<string>): Optional<string> {
   if (value === null) {
     return null;
   }
@@ -142,15 +145,28 @@ function normalizeIpCandidate(value: string | null): string | null {
     return null;
   }
 
-  if (INVALID_IP_TOKENS.has(trimmed.toLowerCase())) {
+  const lower = trimmed.toLowerCase();
+  if (INVALID_IP_TOKENS.has(lower)) {
     return null;
   }
 
-  if (trimmed.includes(':') && trimmed.includes('.')) {
-    const colonIndex = trimmed.lastIndexOf(':');
-    if (colonIndex > -1) {
-      return trimmed.slice(0, colonIndex);
+  // obfuscated identifiers MUST start with "_" and are not IP addresses.
+  if (trimmed.startsWith('_')) {
+    return null;
+  }
+
+  // accept bracketed IPv6 (optionally with :port after the bracket) in any header, not just Forwarded.
+  if (trimmed.startsWith('[')) {
+    const closingIndex = trimmed.indexOf(']');
+    if (closingIndex > 1) {
+      return trimmed.slice(1, closingIndex);
     }
+    return null;
+  }
+
+  // only strip ports for plain IPv4:port.
+  if (IPV4_WITH_PORT_RE.test(trimmed)) {
+    return trimmed.slice(0, trimmed.lastIndexOf(':'));
   }
 
   return trimmed;

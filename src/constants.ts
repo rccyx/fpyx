@@ -1,9 +1,3 @@
-/**
- * Constants used throughout the fpyx library.
- *
- * @packageDocumentation
- */
-
 /** FNV-1a 64-bit offset basis constant. */
 export const FNV_OFFSET_BASIS_64 = 0xcbf29ce484222325n;
 
@@ -14,7 +8,7 @@ export const FNV_PRIME_64 = 0x100000001b3n;
 export const FNV_MASK_64 = 0xffffffffffffffffn;
 
 /** Default precedence of client IP headers. Override to match your trusted proxy chain. */
-export const DEFAULT_IP_HEADERS: readonly string[] = [
+export const DEFAULT_IP_HEADERS = [
   'cf-connecting-ip',
   'fastly-client-ip',
   'fly-client-ip',

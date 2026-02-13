@@ -1,9 +1,3 @@
-/**
- * Main fingerprint function implementation.
- *
- * @packageDocumentation
- */
-
 import type {
   FingerprintSource,
   FingerprintOptions,

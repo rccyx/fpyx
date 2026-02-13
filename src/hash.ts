@@ -1,9 +1,3 @@
-/**
- * FNV-1a hash implementation.
- *
- * @packageDocumentation
- */
-
 import { FNV_OFFSET_BASIS_64, FNV_PRIME_64, FNV_MASK_64 } from './constants';
 
 /**
@@ -27,8 +21,6 @@ import { FNV_OFFSET_BASIS_64, FNV_PRIME_64, FNV_MASK_64 } from './constants';
  * const hash = fnv1a64Hex(encoder.encode('hello'));
  * console.log(hash); // "a430d84680aabd0b"
  * ```
- *
- * @see {@link https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function | FNV hash - Wikipedia}
  */
 export function fnv1a64Hex(data: Uint8Array): string {
   let hash = FNV_OFFSET_BASIS_64;
