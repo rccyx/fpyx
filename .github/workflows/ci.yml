@@ -11,19 +11,24 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: Release
+  group: release
   cancel-in-progress: false
 
 jobs:
   format:
-    uses: ./.github/workflows/check-formatting.yml
-  lint:
-    uses: ./.github/workflows/lint.yml
-  test:
-    uses: ./.github/workflows/test.yml
+    uses: ./.github/workflows/on-workflow-call-format.yml
 
-  npm:
+  lint:
+    uses: ./.github/workflows/on-workflow-call-lint.yml
+
+  test:
+    uses: ./.github/workflows/on-workflow-call-test.yml
+
+  build:
+    uses: ./.github/workflows/on-workflow-call-build.yml
+
+  publish:
     if: github.ref == 'refs/heads/main'
-    needs: [format, lint, test]
-    uses: ./.github/workflows/publish.yml
+    needs: [format, lint, test, build]
+    uses: ./.github/workflows/on-workflow-call-publish.yml
     secrets: inherit

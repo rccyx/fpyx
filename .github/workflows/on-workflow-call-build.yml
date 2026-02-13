@@ -1,14 +1,13 @@
-name: Prettier
+name: CI
 
 on:
-  pull_request:
   workflow_dispatch:
   workflow_call:
 
 jobs:
-  check:
+  build_node:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
-      - run: pnpm format:check
+      - run: pnpm run build
