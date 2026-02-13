@@ -1,13 +1,12 @@
-import rollupPluginReplace from '@rollup/plugin-replace';
-import rollupPluginTypescript from '@rollup/plugin-typescript';
-import { type Plugin, type RollupOptions } from 'rollup';
-import rollupPluginAutoExternal from 'rollup-plugin-auto-external';
-import rollupPluginDts from 'rollup-plugin-dts';
 import path from 'path';
+import replace from '@rollup/plugin-replace';
+import typescript from '@rollup/plugin-typescript';
+import autoExternal from 'rollup-plugin-auto-external';
+import dts from 'rollup-plugin-dts';
+import type { RollupOptions } from 'rollup';
 
-const common: RollupOptions = {
+const base: RollupOptions = {
   input: 'src/index.ts',
-  external: [],
   treeshake: {
     annotations: true,
     moduleSideEffects: false,
@@ -16,37 +15,27 @@ const common: RollupOptions = {
   },
 };
 
-const runtimes: RollupOptions = {
-  ...common,
+const runtime: RollupOptions = {
+  ...base,
   output: [
     {
-      file: './dist/index.mjs',
+      file: 'dist/index.mjs',
       format: 'esm',
       sourcemap: false,
     },
     {
-      file: './dist/index.cjs',
+      file: 'dist/index.cjs',
       format: 'cjs',
-      sourcemap: false,
-    },
-    {
-      file: './dist/index.umd.js',
-      format: 'umd',
-      name: 'env',
-      sourcemap: false,
-    },
-    {
-      file: './dist/index.iife.js',
-      format: 'iife',
+      exports: 'named',
       sourcemap: false,
     },
   ],
   plugins: [
-    rollupPluginAutoExternal(),
-    rollupPluginTypescript({
+    autoExternal(),
+    typescript({
       tsconfig: 'tsconfig.build.json',
     }),
-    rollupPluginReplace({
+    replace({
       values: {
         'import.meta.vitest': 'undefined',
       },
@@ -55,20 +44,18 @@ const runtimes: RollupOptions = {
   ],
 };
 
-const types: RollupOptions = {
+const typesBuild: RollupOptions = {
   input: 'src/index.ts',
-  output: [
-    {
-      file: path.resolve('dist', 'index.d.ts'),
-      format: 'esm',
-    },
-  ],
+  output: {
+    file: path.resolve('dist', 'index.d.ts'),
+    format: 'esm',
+  },
   plugins: [
-    rollupPluginDts({
+    dts({
       tsconfig: 'tsconfig.build.json',
       respectExternal: true,
     }),
-  ] as Plugin[],
+  ],
 };
 
-export default [runtimes, types];
+export default [runtime, typesBuild];
