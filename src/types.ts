@@ -1,8 +1,5 @@
-/**
- * Type definitions for fpyx fingerprinting library.
- *
- * @packageDocumentation
- */
+export type Optional<T> = T | null;
+export type Possible<T> = T | undefined;
 
 /**
  * Compact result returned by the fingerprint function.
@@ -26,11 +23,11 @@ export interface FingerprintResult {
  * Structured request traits extracted from headers and request metadata.
  */
 export interface FingerprintTraits {
-  readonly ip: string | null;
-  readonly userAgent: string | null;
-  readonly acceptLanguage: string | null;
-  readonly method: string | null;
-  readonly path: string | null;
+  readonly ip: Optional<string>;
+  readonly userAgent: Optional<string>;
+  readonly acceptLanguage: Optional<string>;
+  readonly method: Optional<string>;
+  readonly path: Optional<string>;
 }
 
 /**

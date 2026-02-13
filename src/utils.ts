@@ -4,7 +4,12 @@
  * @packageDocumentation
  */
 
-import type { FingerprintSource, FingerprintTraits } from './types';
+import type {
+  FingerprintSource,
+  FingerprintTraits,
+  Optional,
+  Possible,
+} from './types';
 
 /**
  * Safely trims a string or returns null if empty.
@@ -13,7 +18,7 @@ import type { FingerprintSource, FingerprintTraits } from './types';
  * @returns The trimmed string or null.
  * @internal
  */
-export function safeTrim(value: string | null): string | null {
+export function safeTrim(value: Optional<string>): Optional<string> {
   if (value === null) {
     return null;
   }
@@ -43,7 +48,7 @@ export function isRequestLike(value: FingerprintSource): value is Request {
  * @returns The HTTP method or null.
  * @internal
  */
-export function extractMethod(source: FingerprintSource): string | null {
+export function extractMethod(source: FingerprintSource): Optional<string> {
   if (isRequestLike(source)) {
     return source.method ?? null;
   }
@@ -60,14 +65,14 @@ export function extractMethod(source: FingerprintSource): string | null {
  * @internal
  */
 export function extractPath(
-  urlValue: string | URL | undefined,
+  urlValue: Possible<URL>,
   normalizer?: (path: string) => string
-): string | null {
+): Optional<string> {
   if (urlValue === undefined) {
     return null;
   }
 
-  let path: string | null = null;
+  let path: Optional<string> = null;
   if (urlValue instanceof URL) {
     path = urlValue.pathname;
   } else {
@@ -75,7 +80,7 @@ export function extractPath(
       const parsed = new URL(urlValue, 'http://localhost');
       path = parsed.pathname;
     } catch {
-      path = urlValue.startsWith('/') ? urlValue : null;
+      path = null;
     }
   }
 
