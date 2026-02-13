@@ -1,33 +1,43 @@
 name: Bug report
-description: Create a bug report to help us improve
-labels: ['🐛 bug']
+description: Report a reproducible incorrect behavior.
+labels: ['bug']
 body:
-  - type: markdown
-    attributes:
-      value: |
-        You can follow the sections in the template and provide as much information as possible about your problem.
   - type: textarea
     id: description
     attributes:
-      label: Bug description
-      description: A clear and concise description of what the bug is.
+      label: Bug
+      description: What actually happens.
     validations:
       required: true
+
   - type: textarea
     id: steps
     attributes:
-      label: How to reproduce
-      description: Steps to reproduce the behavior
+      label: Reproduction
+      description: Minimal steps or code to reproduce.
     validations:
       required: true
+
   - type: textarea
     id: expected
     attributes:
-      label: Expected behavior
-      description: A clear and concise description of what you expected to happen.
+      label: Expected
+      description: What should have happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment (optional)
+      description: Runtime, platform, versions, or config if relevant.
+    validations:
+      required: false
 
   - type: textarea
     id: fix
     attributes:
-      label: Possible fix
-      description: Any suggestions over how to fix it.
+      label: Notes (optional)
+      description: Analysis or suspected cause, if any.
+    validations:
+      required: false

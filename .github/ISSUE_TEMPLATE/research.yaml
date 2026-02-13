@@ -1,6 +1,6 @@
 name: Research request
-description: I think this idea needs further research ...
-labels: ['🔍 research']
+description: Flag an unresolved question that requires deliberate investigation.
+labels: ['research']
 body:
   - type: textarea
     attributes:

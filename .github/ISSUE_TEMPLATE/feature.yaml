@@ -1,24 +1,31 @@
 name: Feature request
-description: Wouldn't it be nice if this lib could ...
-labels: ['⭐ feature']
+description: Propose a concrete capability this library should support.
+labels: ['feature']
 body:
   - type: textarea
     attributes:
-      label: New feature motivation
-      description: Describe the context, the use-case and the advantages of the feature request.
+      label: Motivation / pain point
+      description: |
+        What concrete limitation, inefficiency, or failure mode motivates this feature?
+        Describe the real use-case, the value unlocked, and the tradeoffs involved.
     validations:
       required: true
 
   - type: textarea
     attributes:
-      label: New feature description
-      description: Describe the functional changes that would have to be made.
+      label: Capability definition
+      description: |
+        What exact behavior should exist?
+        Describe the functional surface, expected behavior, and constraints.
+        Be explicit about what this feature does and does not cover.
     validations:
       required: true
 
   - type: textarea
     attributes:
-      label: New feature implementation
-      description: Optionally describe the technical changes to be made.
+      label: Implementation notes (optional)
+      description: |
+        If you’ve thought through the internals, outline a viable approach.
+        Pseudocode, invariants, or references to existing primitives are welcome.
     validations:
       required: false
