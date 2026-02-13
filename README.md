@@ -8,7 +8,8 @@ Zero dependencies. Zero I/O. Zero crypto APIs. Works everywhere JavaScript runs:
 
 fpyx builds stable, compact identifiers from HTTP request traits, trusted client IP, User-Agent, Accept-Language, and optional method/path, then hashes them with FNV-1a 64-bit for fast, cheap rate limiting keys.
 
-This is for rate limiting and quota buckets, not identity or authentication.
+> [!IMPORTANT]
+> This is for rate limiting and quota buckets, not identity or authentication.
 
 ## Installation
 

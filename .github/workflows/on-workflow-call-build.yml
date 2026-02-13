@@ -5,7 +5,7 @@ on:
   workflow_call:
 
 jobs:
-  build_node:
+  node:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
