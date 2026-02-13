@@ -73,8 +73,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --ext .ts",
-    "prepare": "husky install",
-    "release": "semantic-release",
+    "typecheck": "tsc --noEmit",
     "test": "vitest --run --coverage"
   },
   "devDependencies": {
