@@ -1,12 +1,82 @@
 {
-  "author": {
-    "email": "oss@rccyx.com",
-    "name": "@rccyx"
+  "name": "fpyx",
+  "version": "1.0.0",
+  "description": "Hardened cross-runtime request fingerprinting for anonymous rate limiting. Zero dependencies. Zero I/O. Zero crypto APIs. Works in Node.js 18+, Bun, Deno, Cloudflare Workers, edge runtimes, and modern browsers. Fast FNV-1a 64-bit hashing with trusted IP detection.",
+  "keywords": [
+    "rate-limiting",
+    "request-fingerprint",
+    "fingerprint",
+    "anonymous",
+    "fnv",
+    "fnv1a",
+    "hash",
+    "hashing",
+    "edge-runtime",
+    "cloudflare-workers",
+    "vercel-edge",
+    "netlify-edge",
+    "fastly",
+    "fly-io",
+    "bun",
+    "deno",
+    "nodejs",
+    "typescript",
+    "zero-dependencies",
+    "cross-runtime",
+    "api-security",
+    "ddos-protection",
+    "quota",
+    "throttle",
+    "ip-detection"
+  ],
+  "homepage": "https://github.com/rccyx/fpyx#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rccyx/fpyx.git"
   },
   "bugs": {
     "url": "https://github.com/rccyx/fpyx/issues"
   },
-  "description": "Hardened, cross-runtime request fingerprinting for anonymous rate limiting. Zero dependencies, runs everywhere: Node.js 18+, Bun, Deno, Cloudflare Workers, edge runtimes, and browsers. Fast FNV-1a hashing with trusted IP detection.",
+  "author": {
+    "name": "@rccyx"
+  },
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "browser": "./dist/index.mjs",
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "build": "rimraf dist && rollup -c rollup.config.ts --configPlugin @rollup/plugin-typescript",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --ext .ts",
+    "prepare": "husky install",
+    "release": "semantic-release",
+    "test": "vitest --run --coverage"
+  },
   "devDependencies": {
     "@cspell/dict-cryptocurrencies": "5.0.0",
     "@rollup/plugin-replace": "5.0.5",
@@ -55,79 +125,5 @@
     "vite-tsconfig-paths": "4.2.3",
     "vitest": "1.5.0",
     "zod": ">=3.0.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "files": [
-    "dist/",
-    "README.md",
-    "LICENSE",
-    "package.json"
-  ],
-  "homepage": "https://github.com/rccyx/fpyx#readme",
-  "keywords": [
-    "rate-limiting",
-    "fingerprint",
-    "fingerprinting",
-    "request-fingerprint",
-    "anonymous",
-    "fnv",
-    "fnv1a",
-    "hash",
-    "hashing",
-    "cloudflare-workers",
-    "edge-runtime",
-    "cloudflare",
-    "vercel-edge",
-    "netlify-edge",
-    "fastly",
-    "fly-io",
-    "bun",
-    "deno",
-    "nodejs",
-    "typescript",
-    "zero-dependencies",
-    "cross-runtime",
-    "owasp",
-    "api-security",
-    "ddos-protection",
-    "quota",
-    "throttle",
-    "ip-detection",
-    "user-agent"
-  ],
-  "license": "MIT",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
-  "name": "fpyx",
-  "packageManager": "pnpm@9.12.0",
-  "peerDependencies": {
-    "typescript": ">=5.0.0"
-  },
-  "private": false,
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/rccyx/fpyx.git"
-  },
-  "scripts": {
-    "build": "pnpm build:node",
-    "build:node": "rimraf dist && rollup -c rollup.config.ts --configPlugin @rollup/plugin-typescript",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "lint": "eslint . --ext .ts",
-    "prepare": "husky install",
-    "release": "semantic-release",
-    "test": "vitest --run --coverage"
-  },
-  "type": "module",
-  "types": "./dist/index.d.ts",
-  "typesVersions": {
-    "*": {
-      "*": [
-        "dist/index.d.ts"
-      ]
-    }
-  },
-  "version": "1.0.0"
+  }
 }
