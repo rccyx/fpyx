@@ -15,6 +15,7 @@ import {
   buildParts,
   isRequestLike,
 } from './utils';
+import { normalizeIpForBucket } from './ipv6-subnet';
 
 const textEncoder = new TextEncoder();
 
@@ -156,7 +157,7 @@ export function fingerprint(
 ): FingerprintResult {
   const headers = source.headers;
   const traits: FingerprintTraits = {
-    ip: extractClientIp(headers, options?.ipHeaders ?? DEFAULT_IP_HEADERS),
+    ip: normalizeIpForBucket(extractClientIp(headers, options?.ipHeaders ?? DEFAULT_IP_HEADERS), options?.ipv6Subnet),
     userAgent: safeTrim(headers.get('user-agent')),
     acceptLanguage: safeTrim(headers.get('accept-language')),
     method: options?.includeMethod === true ? extractMethod(source) : null,
