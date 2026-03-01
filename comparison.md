@@ -1,3 +1,11 @@
+tldr:
+
+FingerprintJS is too heavy and privacy-invasive for simple API protection.
+rate-limiter-flexible is amazing at math/storage but leaves the "key" part entirely up to you, which chances are, you'll mess it up.
+express-rate-limit is too tied to Express.
+
+fpyx was built to be the standard key-cutter, a specialized tool that does one thing (turning a Request into a Hash) perfectly, so it can be plugged into any engine anywhere JS runs, your logic stays the same when you change clouds, frameworks or runtimes.
+
 ### fpyx
 
 - **What it is:** a tiny, cross-runtime function that turns a Fetch-style request into a stable **rate-limit key**: `{ hash, traits, parts }`.

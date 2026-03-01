@@ -1,6 +1,21 @@
 import type { Optional } from './types';
 import type { SizedTuple } from 'typyx';
 
+/**
+ * normalize an ip string for bucket-based identity.
+ *
+ * full ipv6 is too granular under privacy extensions, so we subnet-mask.
+ * default ipv6 mask is /56, which is a common residential allocation granularity.
+ * ipv4-mapped ipv6 (::ffff:a.b.c.d) is normalized to ipv4 to avoid collapsing under masking.
+ * zone identifiers (fe80::1%eth0) are stripped because they are interface-local routing hints,
+ * not part of the address bits.
+ *
+ * @see https://datatracker.ietf.org/doc/html/rfc4291
+ * @see https://datatracker.ietf.org/doc/html/rfc5952
+ * @see https://www.iana.org/assignments/iana-ipv6-special-registry/iana-ipv6-special-registry.xhtml
+ * @see https://datatracker.ietf.org/doc/html/rfc4007
+ * @see https://datatracker.ietf.org/doc/html/rfc6874
+ */
 export function normalizeIpForBucket(
   ip: Optional<string>,
   ipv6Subnet?: number
@@ -10,7 +25,6 @@ export function normalizeIpForBucket(
   const zoneCut = ip.indexOf('%');
   const raw = (zoneCut >= 0 ? ip.slice(0, zoneCut) : ip).toLowerCase();
 
-  // not IPv6
   if (!raw.includes(':')) return raw;
 
   const prefix = ipv6Subnet ?? 56;
@@ -22,7 +36,6 @@ export function normalizeIpForBucket(
   const bytes = parseIpv6ToBytes(raw);
   if (bytes === null) return raw;
 
-  // normalize ipv4-mapped ipv6 (::ffff:x.y.z.w) to ipv4 to avoid collapsing to 0 under subnet masking
   if (isIpv4MappedIpv6(bytes)) {
     return `${bytes[12]!}.${bytes[13]!}.${bytes[14]!}.${bytes[15]!}`;
   }
@@ -31,7 +44,6 @@ export function normalizeIpForBucket(
   return bytesToFullIpv6(bytes);
 }
 
-// Check for ::ffff:x.y.z.w ipv4-mapped addresses
 function isIpv4MappedIpv6(bytes: Uint8Array): boolean {
   for (let i = 0; i < 10; i++) {
     if (bytes[i]! !== 0) return false;
@@ -156,9 +168,7 @@ function parseIpv4(s: string): Optional<SizedTuple<number, 4>> {
   if (parts.length !== 4) return null;
 
   const nums = parts.map((x) => Number.parseInt(x, 10));
-  if (nums.some((n) => !Number.isFinite(n) || n < 0 || n > 255)) {
-    return null;
-  }
+  if (nums.some((n) => !Number.isFinite(n) || n < 0 || n > 255)) return null;
 
   return [nums[0]!, nums[1]!, nums[2]!, nums[3]!];
 }

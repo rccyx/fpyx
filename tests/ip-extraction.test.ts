@@ -106,4 +106,41 @@ describe('extractClientIp', () => {
 
     expect(extractClientIp(headers, ['x-real-ip'])).toBe('203.0.113.10');
   });
+  it('treats quoted unknown in Forwarded as invalid', () => {
+    const headers = new Headers();
+    headers.set('forwarded', 'for="unknown"');
+
+    expect(extractClientIp(headers, ['forwarded'])).toBeNull();
+  });
+
+  it('strips ipv4 :port in X-Forwarded-For (leftmost entry)', () => {
+    const headers = new Headers();
+    headers.set('x-forwarded-for', '203.0.113.10:1234, 198.51.100.9');
+
+    expect(extractClientIp(headers, ['x-forwarded-for'])).toBe('203.0.113.10');
+  });
+
+  it('rejects RFC 7239 obfuscated identifiers that are not IP literals', () => {
+    const headers = new Headers();
+    headers.set('forwarded', 'for=hidden');
+
+    expect(extractClientIp(headers, ['forwarded'])).toBeNull();
+  });
+
+  it('rejects quoted RFC 7239 obfuscated identifiers that are not IP literals', () => {
+    const headers = new Headers();
+    headers.set('forwarded', 'for="hidden"');
+
+    expect(extractClientIp(headers, ['forwarded'])).toBeNull();
+  });
+
+  it('falls back when X-Forwarded-For is non-ip and a later header has a valid ip', () => {
+    const headers = new Headers();
+    headers.set('x-forwarded-for', 'hidden, 203.0.113.10');
+    headers.set('x-real-ip', '203.0.113.10');
+
+    expect(extractClientIp(headers, ['x-forwarded-for', 'x-real-ip'])).toBe(
+      '203.0.113.10'
+    );
+  });
 });

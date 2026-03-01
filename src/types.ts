@@ -2,37 +2,35 @@ export type Optional<T> = T | null;
 export type Possible<T> = T | undefined;
 
 /**
- * Compact result returned by the fingerprint function.
+ * compact result returned by `fingerprint`.
+ *
+ * `hash` is derived from `parts.join('|')` hashed with the configured hash function.
  */
 export interface FingerprintResult {
-  /**
-   * Deterministic 64-bit FNV-1a hexadecimal digest.
-   */
   readonly hash: string;
-  /**
-   * Individual payload segments (e.g. `ip:198.51.100.7`).
-   */
   readonly parts: readonly string[];
-  /**
-   * Parsed request traits used to derive the fingerprint.
-   */
   readonly traits: FingerprintTraits;
 }
 
 /**
- * Structured request traits extracted from headers and request metadata.
+ * identity traits used to derive the fingerprint.
+ *
+ * invariant:
+ * actorId and ip are mutually exclusive anchors.
+ * if actorId is non-null, it is the anchor and ip is null.
+ * otherwise ip is the anchor and actorId is null.
  */
 export interface FingerprintTraits {
+  readonly actorId: Optional<string>;
   readonly ip: Optional<string>;
-  readonly userAgent: Optional<string>;
-  readonly acceptLanguage: Optional<string>;
   readonly method: Optional<string>;
   readonly path: Optional<string>;
 }
 
 /**
- * Data source accepted by fingerprint function. Works with Fetch-standard Request
- * objects and with lightweight header-only inputs.
+ * data source accepted by `fingerprint`.
+ *
+ * supports fetch request objects and lightweight objects for edge runtimes.
  */
 export type FingerprintSource =
   | Request
@@ -43,70 +41,56 @@ export type FingerprintSource =
     };
 
 /**
- * Options to configure fingerprint generation.
+ * options for identity derivation.
  *
- * Controls inclusion of request properties and behavior of the hashing process.
+ * the core decision is anchor precedence:
+ * provide `actorId` when you have a trusted authenticated identity.
+ * otherwise fpyx anchors on the client ip bucket.
  */
 export interface FingerprintOptions {
   /**
-   * If true, include the HTTP method (e.g., GET, POST) in the fingerprint.
-   *
-   * GET /login and POST /login will yield different fingerprints.
-   * Defaults to false (optional).
+   * include the http method in the key as a scoping dimension.
    */
   readonly includeMethod?: boolean;
 
   /**
-   * If true, include the request URL pathname (e.g., /login) in the fingerprint.
-   *
-   * /login and /dashboard will yield different fingerprints.
-   * Defaults to false (optional).
+   * include the url pathname in the key as a scoping dimension.
    */
   readonly includePath?: boolean;
 
   /**
-   * Custom hash function to use for fingerprint calculation.
+   * override the hash function used to hash the payload bytes.
    *
-   * Must be deterministic; receives the UTF-8 bytes of the fingerprint payload.
-   * Defaults to internal FNV-1a 64-bit hash implementation.
+   * must be deterministic.
    */
   readonly hashFn?: HashFunction;
 
   /**
-   * List of headers (in priority order) to use for extracting the client IP address.
+   * ordered list of headers to consult for client ip extraction.
    *
-   * Only use headers set by your trusted edge proxy or load balancer.
-   * Do not include headers that may be supplied by clients directly.
-   * The default is a platform-aware, secure list.
+   * only include headers that your edge overwrites.
    */
   readonly ipHeaders?: readonly string[];
 
   /**
-   * Function to normalize a URL path before fingerprinting.
-   *
-   * Useful for bucket collapsing (e.g., transforming /users/123 to /users/:id).
-   * Allows grouping similar endpoint requests that share only dynamic segments.
+   * normalize a pathname before it is included when `includePath` is enabled.
    */
   readonly pathNormalizer?: (path: string) => string;
 
   /**
-   * IPv6 subnet prefix length for masking client IPv6 addresses.
+   * ipv6 subnet prefix length for masking.
    *
-   * - If specified (1–128), IPv6 addresses are masked to this prefix.
-   * - If false, disables masking and uses the full address.
-   * - If undefined, uses the default of /56 (recommended for most environments).
-   *
-   * Masking reduces over-granularity due to IPv6 privacy extensions.
-   *
-   * Typical allocations:
-   *   /64  - single LAN (granular)
-   *   /56  - residential (typical default)
-   *   /48  - larger organization/site (coarser)
+   * if undefined, defaults to /56.
    */
   readonly ipv6Subnet?: number;
+
+  /**
+   * trusted caller-provided actor identity (session id, api key, user id).
+   *
+   * if present and non-empty after trim, it fully replaces ip anchoring.
+   * fpyx will not concatenate this with ip.
+   */
+  readonly actorId?: Optional<string>;
 }
 
-/**
- * Hash function type that takes UTF-8 bytes and returns a deterministic string digest.
- */
 export type HashFunction = (input: Uint8Array) => string;

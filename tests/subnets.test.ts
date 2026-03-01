@@ -102,4 +102,20 @@ describe('normalizeIpForBucket', () => {
     expect(() => normalizeIpForBucket('2001:db8::1', 0)).toThrow(RangeError);
     expect(() => normalizeIpForBucket('2001:db8::1', 129)).toThrow(RangeError);
   });
+  it('lowercases ipv6 input before canonicalizing', () => {
+    expect(normalizeIpForBucket('2001:DB8::1', 128)).toBe(
+      '2001:0db8:0000:0000:0000:0000:0000:0001'
+    );
+  });
+
+  it('accepts boundary subnet prefixes 1 and 128', () => {
+    expect(normalizeIpForBucket('2001:db8::1', 1)).toMatch(/^0000:/);
+    expect(normalizeIpForBucket('2001:db8::1', 128)).toBe(
+      '2001:0db8:0000:0000:0000:0000:0000:0001'
+    );
+  });
+
+  it('throws for non-integer ipv6Subnet', () => {
+    expect(() => normalizeIpForBucket('2001:db8::1', 56.5)).toThrow(RangeError);
+  });
 });
