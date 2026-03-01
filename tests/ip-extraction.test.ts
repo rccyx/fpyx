@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractClientIp } from '../src/ip-extraction.js';
+import { extractClientIp } from '../src/ip-extraction';
 
 describe('extractClientIp', () => {
   it('returns null when none of the precedence headers exist', () => {

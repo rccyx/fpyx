@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { fingerprint, fnv1a64Hex } from '../src/index.js';
+import { fingerprint, fnv1a64Hex } from '../src/index';
 
 const encoder = new TextEncoder();
 
@@ -61,8 +61,12 @@ describe('fingerprintRequest', () => {
       'for="[2001:db8:cafe::17]:4711";proto=https;by=203.0.113.43'
     );
 
-    const result = fingerprint({ headers }, { ipHeaders: ['forwarded'] });
-    expect(result.traits.ip).toBe('2001:db8:cafe::17');
+    const result = fingerprint(
+      { headers },
+      { ipHeaders: ['forwarded'], ipv6Subnet: 128 }
+    );
+
+    expect(result.traits.ip).toBe('2001:0db8:cafe:0000:0000:0000:0000:0017');
   });
 
   it('ignores unknown Forwarded identifiers', () => {

@@ -50,7 +50,7 @@ export type FingerprintSource =
 export interface FingerprintOptions {
   /**
    * If true, include the HTTP method (e.g., GET, POST) in the fingerprint.
-   * 
+   *
    * GET /login and POST /login will yield different fingerprints.
    * Defaults to false (optional).
    */
@@ -58,7 +58,7 @@ export interface FingerprintOptions {
 
   /**
    * If true, include the request URL pathname (e.g., /login) in the fingerprint.
-   * 
+   *
    * /login and /dashboard will yield different fingerprints.
    * Defaults to false (optional).
    */
@@ -66,7 +66,7 @@ export interface FingerprintOptions {
 
   /**
    * Custom hash function to use for fingerprint calculation.
-   * 
+   *
    * Must be deterministic; receives the UTF-8 bytes of the fingerprint payload.
    * Defaults to internal FNV-1a 64-bit hash implementation.
    */
@@ -74,8 +74,8 @@ export interface FingerprintOptions {
 
   /**
    * List of headers (in priority order) to use for extracting the client IP address.
-   * 
-   * Only use headers set by your trusted edge proxy or load balancer. 
+   *
+   * Only use headers set by your trusted edge proxy or load balancer.
    * Do not include headers that may be supplied by clients directly.
    * The default is a platform-aware, secure list.
    */
@@ -83,7 +83,7 @@ export interface FingerprintOptions {
 
   /**
    * Function to normalize a URL path before fingerprinting.
-   * 
+   *
    * Useful for bucket collapsing (e.g., transforming /users/123 to /users/:id).
    * Allows grouping similar endpoint requests that share only dynamic segments.
    */
@@ -91,13 +91,13 @@ export interface FingerprintOptions {
 
   /**
    * IPv6 subnet prefix length for masking client IPv6 addresses.
-   * 
+   *
    * - If specified (1–128), IPv6 addresses are masked to this prefix.
    * - If false, disables masking and uses the full address.
    * - If undefined, uses the default of /56 (recommended for most environments).
-   * 
+   *
    * Masking reduces over-granularity due to IPv6 privacy extensions.
-   * 
+   *
    * Typical allocations:
    *   /64  - single LAN (granular)
    *   /56  - residential (typical default)
@@ -105,7 +105,6 @@ export interface FingerprintOptions {
    */
   readonly ipv6Subnet?: number;
 }
-
 
 /**
  * Hash function type that takes UTF-8 bytes and returns a deterministic string digest.

@@ -1,4 +1,3 @@
--> GDPR & CCPA EMPHASIS
 
 <div align="center">
 

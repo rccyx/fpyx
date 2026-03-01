@@ -86,8 +86,6 @@ export function extractPath(
   return normalizer?.(path) ?? path;
 }
 
-
-
 /**
  * Builds the payload parts array from fingerprint traits.
  *

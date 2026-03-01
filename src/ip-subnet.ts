@@ -1,6 +1,5 @@
 import type { Optional } from './types';
-import type {SizedTuple} from "typyx"
-
+import type { SizedTuple } from 'typyx';
 
 export function normalizeIpForBucket(
   ip: Optional<string>,
@@ -23,8 +22,21 @@ export function normalizeIpForBucket(
   const bytes = parseIpv6ToBytes(raw);
   if (bytes === null) return raw;
 
+  // normalize ipv4-mapped ipv6 (::ffff:x.y.z.w) to ipv4 to avoid collapsing to 0 under subnet masking
+  if (isIpv4MappedIpv6(bytes)) {
+    return `${bytes[12]!}.${bytes[13]!}.${bytes[14]!}.${bytes[15]!}`;
+  }
+
   maskBytes(bytes, prefix);
   return bytesToFullIpv6(bytes);
+}
+
+// Check for ::ffff:x.y.z.w ipv4-mapped addresses
+function isIpv4MappedIpv6(bytes: Uint8Array): boolean {
+  for (let i = 0; i < 10; i++) {
+    if (bytes[i]! !== 0) return false;
+  }
+  return bytes[10]! === 0xff && bytes[11]! === 0xff;
 }
 
 function maskBytes(bytes: Uint8Array, prefix: number): void {
