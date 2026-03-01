@@ -14,7 +14,7 @@ const IPV4_WITH_PORT_RE = /^(?:\d{1,3}\.){3}\d{1,3}:\d+$/;
  */
 export function extractClientIp(
   headers: Headers,
-  precedence: ReadonlyArray<string>
+  precedence: readonly string[]
 ): Optional<string> {
   for (const headerName of precedence) {
     const value = headers.get(headerName);
@@ -47,7 +47,7 @@ export function extractClientIp(
 }
 
 /**
- * Parses the RFC 7239 Forwarded header to extract the client IP.
+ * Parses the Forwarded header to extract the client IP.
  *
  * @param value - The Forwarded header value.
  * @returns The extracted IP or null.
@@ -107,7 +107,6 @@ function cleanForwardedIdentifier(value: string): Optional<string> {
   }
 
   // need to only strip ports for plain IPv4:port.
-  // Do NOT use "contains ':' and '.'" heuristics,
   // because IPv6 forms like ::ffff:203.0.113.10 contain dots and colons.
   if (IPV4_WITH_PORT_RE.test(trimmed)) {
     return trimmed.slice(0, trimmed.lastIndexOf(':'));

@@ -1,100 +1,76 @@
-# Comparison
 
-fpyx is the missing layer _under_ rate limiters: a hardened, cross-runtime request fingerprint/key generator for anonymous quota buckets.
+### fpyx
+- **What it is:** a tiny, cross-runtime function that turns a Fetch-style request into a stable **rate-limit key**: `{ hash, traits, parts }`.
+- **What it consumes:** `Request` or `{ headers: Headers; method?; url? }`.
+- **What it outputs:** a compact identifier you can feed into *any* limiter or datastore.
+- **Core rule:** it only trusts IP headers by *your precedence list*, and parses `Forwarded` according to RFC 7239. 
+- **Why it exists:** most rate limiters assume `req.ip` or ad hoc header parsing; fpyx makes that part consistent across Node, Bun, Deno, Workers, edge.
 
-Most libraries either:
+### What fpyx is not
+- Not a rate limiter (no windows, counters, tokens, Redis, KV, nothing).
+- Not identity, not anti-fraud, not “this user is the same human.” It’s a **bucket key**, on purpose.
 
-1. do rate limiting but assume a good key (often `req.ip`), or
-2. extract IP only, or
-3. do browser/device fingerprinting (identity-ish), which is a different problem.
 
-fpyx focuses on: **stable key generation across Node + edge + browser runtimes**, using **Fetch-standard Request/Headers**, with **trusted proxy header precedence**, and **fast deterministic hashing**.
 
-## Usage
+### Browser/device fingerprinting libraries (different universe)
 
-**Category:** request fingerprinting for rate limiting keys  
-**Primary job:** produce a compact identifier you can feed into Redis/KV/Upstash/any store  
-**Threat model:** do not trust arbitrary client headers; trust only headers your proxy overwrites  
-**Not for:** identity, authentication, “anti-fraud”, or long-lived tracking
+### FingerprintJS
+- **What it’s for:** identifying a browser/device by collecting many browser-exposed attributes and producing a “visitor id.”
+- **How it works conceptually:** it leans on browser surfaces like canvas/WebGL/audio/fonts and other environment traits to build a stable-ish identifier. That’s fraud/abuse analytics territory, not “key for Redis counter.” 
+- **Why it’s not fpyx:** it runs in the browser, is heavier, and is aimed at *recognizing a device*, not generating a clean server-side quota key, super fast.
 
-## Comparison Table
+### ThumbmarkJS
+- **What it’s for:** also browser fingerprinting. It markets itself as a browser fingerprinting library to generate “thumbmarks” for anti-spam/anti-scam type use cases. 
+- **Why it’s not fpyx:** same mismatch. It’s device identification, you’re doing server/edge quota buckets.
 
-| Category                        | Library / Approach                | What it does                                                                                  | Typical identifier strategy                  | Runtime scope              | What you still have to do                                                         | Where fpyx differs                                                                    |
-| ------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------- | -------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Browser fingerprinting          | FingerprintJS                     | Generates a browser fingerprint from many browser attributes (tracking / device intelligence) | “visitor ID” based on browser/device signals | Browser                    | Decide how to map it to rate limiting; accept tracking semantics; heavier surface | fpyx is server/edge-safe, minimal, and explicitly _not_ identity/tracking             |
-| Browser fingerprinting          | ThumbmarkJS                       | Browser fingerprinting (“thumbmark”)                                                          | Device/browser fingerprint                   | Browser                    | Same as above                                                                     | Same: fpyx targets rate limiting buckets, not device identity                         |
-| Rate limiting                   | express-rate-limit                | Rate limiting middleware for Express                                                          | default key is `req.ip`                      | Node/Express               | Correctly configure `trust proxy`, handle proxy headers safely                    | fpyx provides a safer, portable key that doesn’t depend on Express internals          |
-| Rate limiting                   | rate-limiter-flexible             | Rate limiting primitives (Redis/memory/etc)                                                   | “consume points by key” (often `req.ip`)     | Node                       | Provide a robust key; handle proxies consistently                                 | fpyx is the cross-runtime key generator to feed into it                               |
-| Rate limiting (edge/serverless) | Upstash Rate Limit                | HTTP-based rate limiting designed for serverless/edge; you call `limit(identifier)`           | you must supply `identifier`                 | Node + edge + more         | Build a stable identifier string yourself                                         | fpyx produces a deterministic hashed identifier designed for this exact call style    |
-| Framework middleware            | hono-rate-limiter / Hono examples | Rate limiting middleware requires a `keyGenerator` function                                   | often `x-forwarded-for` directly             | Edge + Node (via adapters) | Avoid trusting spoofable headers; normalize correctly                             | fpyx centralizes safe header precedence + normalization, then hashes                  |
-| IP extraction helper            | request-ip                        | Extract client IP from many possible headers                                                  | returns an IP string                         | Mostly Node HTTP/Express   | Still build a composite fingerprint; still hash; still handle method/path scoping | fpyx includes IP precedence + builds the full payload + hashes + returns traits/parts |
-| IP extraction helper            | get-client-ip                     | Extract client IP with header precedence                                                      | returns an IP string                         | General JS                 | Same as above                                                                     | Same: fpyx is “IP extraction + fingerprint assembly + hashing”                        |
-| Hash-only helper                | @sindresorhus/fnv1a (and similar) | Implements FNV-1a                                                                             | you provide bytes/string                     | General JS                 | Still define what to hash; still normalize; still proxy-hardening                 | fpyx defines the payload structure and extraction rules, not just the hash            |
+ fpyx is here because you don’t need a GPU canvas signature to rate limit an API behind a trusted proxy chain to stop a spammer, also, you can't stop a spammer with just an IP and end up blocking 500 other innocent users.
 
-## Why fpyx exists
 
-### 1) Fetch-native, cross-runtime input surface
+## Rate limiters 
+you feed them the key
 
-fpyx takes `Request` or `{ headers: Headers; method?; url? }`. That means it’s compatible with:
+### express-rate-limit
+- **What it’s for:** Express middleware that blocks requests when a key exceeds a window. 
+- **Default behavior:** keys are typically derived from `req.ip`, and you have to get proxy trust correct or you get global throttling mistakes. 
+- **Where fpyx fits:** you replace “whatever Express thinks the IP is” with a stable cross-runtime key, and you keep the rest of the limiter.
 
-- Cloudflare Workers / Vercel Edge / Netlify Edge / Fastly Compute
-- Deno / Bun
-- Node 18+ (via global Fetch / undici)
+### rate-limiter-flexible
+- **What it’s for:** primitives for counting “points” per key (Redis/memory/etc). It’s basically “consume points by key.” 
+- **Where fpyx fits:** you give it `fingerprint(...).hash` as the key. It does the rest.
 
-Most Node rate limiting libs take Express/Node request objects; most edge examples are ad-hoc.
+### Upstash Rate Limit
+- **What it’s for:** rate limiting designed for serverless and edge, “connectionless (HTTP based).” 
+- **How it’s used:** you call `ratelimit.limit(identifier)` and you must supply `identifier`.
+- **Where fpyx fits:** fpyx is a clean way to generate that identifier consistently in any runtime.
 
-### 2) Explicit proxy header precedence
+So basically these are engines. fpyx is the key.
 
-fpyx defaults to a precedence chain that starts with CDN/provider headers (e.g. Cloudflare/Fastly/Fly/Akamai), then standards (`Forwarded`), then common-but-spoofable headers (`X-Forwarded-For`, `X-Real-IP`).
+## IP extraction helpers 
 
-This is where most “keyGenerator: x-forwarded-for” examples are naïve.
+ These stop too realy.
 
-### 3) RFC 7239 Forwarded parsing + XFF first-hop handling
 
-fpyx parses `Forwarded` (for=...) and also takes the first entry from `X-Forwarded-For`, matching common “client, proxy1, proxy2” semantics.
+### request-ip
+- **What it’s for:** extracts the client IP by checking a precedence list of headers. 
+- **Where it stops:** returns an IP string.
+- **Where fpyx differs:** fpyx does IP extraction *plus* payload assembly *plus* hashing *plus* method/path scoping *plus* returns debuggable `traits` and `parts`, with arguments you control.
 
-### 4) Deterministic payload structure + debuggability
+### get-client-ip
+- **What it’s for:** another header-precedence IP extractor. 
+- **Where fpyx differs:** same point. These libs give you a raw string. fpyx gives you a stable quota key you can drop into any limiter.
 
-You don’t just get a hash. You get:
+Also: MDN explicitly warns that X-Forwarded-For is easy to misuse and becomes a risk if you trust it from the open internet. fpyx’s entire value is “make the trusted chain explicit.” 
 
-- `traits` (ip/ua/al/method/path)
-- `parts` (the exact segments that were hashed)
 
-That’s really useful when debugging false positives / false negatives in rate limiting, and almost no “key generator” helpers do this cleanly.
+## Hash-only libs 
+they don’t decide what to hash
 
-### 5) Method/path scoping + path normalization
+### @sindresorhus/fnv1a
+- **What it’s for:** implements FNV-1a hashing. 
+- **Where it stops:** you still have to decide what bytes to hash and how to normalize headers across environments.
+- **Where fpyx differs:** fpyx defines the payload structure and extraction rules, not just the hash.
 
-If you want per-route quotas (e.g. `/login` vs `/search`) you can include `path`, and normalize dynamic IDs (`/users/123 -> /users/:id`).
 
-Most rate limiters either:
 
-- treat everything per-IP globally, or
-- leave route normalization as an exercise.
 
-### 6) Fast, dependency-free hashing (FNV-1a 64-bit)
-
-FNV-1a is non-cryptographic but extremely fast and stable. For anonymous quota buckets, that’s often the correct tradeoff: cheap keys, predictable behavior, no crypto APIs.
-
-> [!NOTE]
-> If you need a cryptographic digest, fpyx supports `hashFn` override.
-
-## Integration examples
-
-### With Upstash Rate Limit
-
-Use `fingerprint(req).hash` as your identifier:
-
-- `identifier = fingerprint(req, { includePath: true, includeMethod: true }).hash`
-- then `ratelimit.limit(identifier)`
-
-### With rate-limiter-flexible / Redis
-
-Use the same `hash` as the Redis key suffix:
-
-- `key = rl:${fingerprint(req).hash}`
-
-### With Hono middleware
-
-Set `keyGenerator` to fpyx’s output rather than raw headers:
-
-- `keyGenerator: (c) => fingerprint(c.req.raw, { includePath: true }).hash`
+fpyx is the missing layer under rate limiters: a cross-runtime request key generator that turns trusted proxy headers + a few coarse traits into a deterministic hash you can feed into any limiter, anywhere.

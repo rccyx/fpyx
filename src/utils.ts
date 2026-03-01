@@ -1,9 +1,3 @@
-/**
- * Utility functions for fingerprinting.
- *
- * @packageDocumentation
- */
-
 import type {
   FingerprintSource,
   FingerprintTraits,
@@ -88,8 +82,7 @@ export function extractPath(
     return null;
   }
 
-  const normalized = normalizer?.(path) ?? path;
-  return normalized;
+  return normalizer?.(path) ?? path;
 }
 
 /**
@@ -99,7 +92,7 @@ export function extractPath(
  * @returns An array of payload segments.
  * @internal
  */
-export function buildParts(traits: FingerprintTraits): ReadonlyArray<string> {
+export function buildParts(traits: FingerprintTraits): readonly string[] {
   const segments: string[] = [
     `ip:${traits.ip ?? ''}`,
     `ua:${traits.userAgent ?? ''}`,

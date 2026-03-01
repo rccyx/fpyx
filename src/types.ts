@@ -12,7 +12,7 @@ export interface FingerprintResult {
   /**
    * Individual payload segments (e.g. `ip:198.51.100.7`).
    */
-  readonly parts: ReadonlyArray<string>;
+  readonly parts: readonly string[];
   /**
    * Parsed request traits used to derive the fingerprint.
    */
@@ -61,7 +61,7 @@ export interface FingerprintOptions {
   /**
    * Header precedence list for trusted client IP detection.
    */
-  readonly ipHeaders?: ReadonlyArray<string>;
+  readonly ipHeaders?: readonly string[];
   /**
    * Optional normalizer for the extracted URL path (e.g. to collapse IDs).
    */
