@@ -59,7 +59,7 @@ export function extractMethod(source: FingerprintSource): Optional<string> {
  * @internal
  */
 export function extractPath(
-  urlValue: Possible<URL>,
+  urlValue: Possible<string | URL>,
   normalizer?: (path: string) => string
 ): Optional<string> {
   if (urlValue === undefined) {
@@ -67,6 +67,7 @@ export function extractPath(
   }
 
   let path: Optional<string> = null;
+
   if (urlValue instanceof URL) {
     path = urlValue.pathname;
   } else {
@@ -84,6 +85,8 @@ export function extractPath(
 
   return normalizer?.(path) ?? path;
 }
+
+
 
 /**
  * Builds the payload parts array from fingerprint traits.
