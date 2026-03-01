@@ -423,15 +423,3 @@ export const DEFAULT_IP_HEADERS: readonly string[] = [
 ## License
 
 MIT (c) [@rccyx](https://rccyx.com)
-
-# Practical examples
-
-- **Global ban / global quota:** use defaults, don’t include method/path.
-  - Result: abusive client gets throttled across the whole API.
-- **Route-specific ban:** `includePath: true` (and normalize if needed).
-  - Result: abuse on `/login` doesn’t throttle `/dashboard`.
-- **Method-specific ban:** `includeMethod: true`.
-  - Result: `POST /login` can be locked tighter than `GET /health`.
-
-That’s the practical reason the library exists: you can choose how coarse the bucket is without rewriting rate limiter code.
-

@@ -21,4 +21,5 @@ if ! pnpm can-npm-publish; then
   exit 0
 fi
 
-pnpm publish --access public --no-git-checks
+pnpm publish --access public --no-git-checks --no-provenance
+
