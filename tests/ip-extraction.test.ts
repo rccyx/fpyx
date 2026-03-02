@@ -30,7 +30,14 @@ describe('extractClientIp', () => {
     expect(extractClientIp(headers, ['x-forwarded-for'])).toBe('198.51.100.8');
   });
 
-  it('falls back to the next header when the first candidate is invalid (RFC 7239 unknown)', () => {
+  it('scans X-Forwarded-For and returns the first valid ip literal (skips unknown/garbage)', () => {
+    const headers = new Headers();
+    headers.set('x-forwarded-for', 'unknown, 203.0.113.10');
+
+    expect(extractClientIp(headers, ['x-forwarded-for'])).toBe('203.0.113.10');
+  });
+
+  it('falls back to the next header when Forwarded has no valid for= value', () => {
     const headers = new Headers();
     headers.set('forwarded', 'for=unknown');
     headers.set('x-forwarded-for', '203.0.113.195, 198.51.100.178');
@@ -76,14 +83,37 @@ describe('extractClientIp', () => {
     expect(extractClientIp(headers, ['forwarded'])).toBe('2001:db8:cafe::17');
   });
 
-  it('handles multiple Forwarded entries and returns the first "for=" found', () => {
+  it('rejects malformed bracketed ipv6 with garbage after ] (only optional :port allowed)', () => {
+    const headers = new Headers();
+    headers.set('forwarded', 'for="[2001:db8::1]lol"');
+
+    expect(extractClientIp(headers, ['forwarded'])).toBeNull();
+  });
+
+  it('handles quoted-string values containing semicolons/commas without breaking parsing', () => {
+    const headers = new Headers();
+
+    headers.set(
+      'forwarded',
+      'for="2001:db8::1;evil", for=203.0.113.60;proto=https'
+    );
+    expect(extractClientIp(headers, ['forwarded'])).toBe('203.0.113.60');
+
+    headers.set(
+      'forwarded',
+      'for="2001:db8::1,evil", for=203.0.113.61;proto=https'
+    );
+    expect(extractClientIp(headers, ['forwarded'])).toBe('203.0.113.61');
+  });
+
+  it('handles multiple Forwarded entries and returns the first valid for= ip', () => {
     const headers = new Headers();
     headers.set(
       'forwarded',
-      'for=203.0.113.60;proto=https, for=203.0.113.61;proto=https'
+      'for=unknown;proto=https, for=203.0.113.61;proto=https'
     );
 
-    expect(extractClientIp(headers, ['forwarded'])).toBe('203.0.113.60');
+    expect(extractClientIp(headers, ['forwarded'])).toBe('203.0.113.61');
   });
 
   it('strips bracketed IPv6 :port even in non-Forwarded headers', () => {
@@ -91,6 +121,13 @@ describe('extractClientIp', () => {
     headers.set('x-forwarded-for', '[2001:db8::1]:4711, 198.51.100.9');
 
     expect(extractClientIp(headers, ['x-forwarded-for'])).toBe('2001:db8::1');
+  });
+
+  it('rejects bracketed IPv6 with garbage after ] in non-Forwarded headers', () => {
+    const headers = new Headers();
+    headers.set('x-forwarded-for', '[2001:db8::1]lol, 198.51.100.9');
+
+    expect(extractClientIp(headers, ['x-forwarded-for'])).toBe('198.51.100.9');
   });
 
   it('does not corrupt IPv4-mapped IPv6 addresses like ::ffff:203.0.113.10', () => {
@@ -106,6 +143,7 @@ describe('extractClientIp', () => {
 
     expect(extractClientIp(headers, ['x-real-ip'])).toBe('203.0.113.10');
   });
+
   it('treats quoted unknown in Forwarded as invalid', () => {
     const headers = new Headers();
     headers.set('forwarded', 'for="unknown"');
@@ -113,7 +151,7 @@ describe('extractClientIp', () => {
     expect(extractClientIp(headers, ['forwarded'])).toBeNull();
   });
 
-  it('strips ipv4 :port in X-Forwarded-For (leftmost entry)', () => {
+  it('strips ipv4 :port in X-Forwarded-For (first valid entry)', () => {
     const headers = new Headers();
     headers.set('x-forwarded-for', '203.0.113.10:1234, 198.51.100.9');
 
@@ -134,13 +172,27 @@ describe('extractClientIp', () => {
     expect(extractClientIp(headers, ['forwarded'])).toBeNull();
   });
 
-  it('falls back when X-Forwarded-For is non-ip and a later header has a valid ip', () => {
+  it('falls back when X-Forwarded-For has no valid ip and a later header has a valid ip', () => {
     const headers = new Headers();
-    headers.set('x-forwarded-for', 'hidden, 203.0.113.10');
+    headers.set('x-forwarded-for', 'hidden, unknown');
     headers.set('x-real-ip', '203.0.113.10');
 
     expect(extractClientIp(headers, ['x-forwarded-for', 'x-real-ip'])).toBe(
       '203.0.113.10'
     );
+  });
+
+  it('rejects invalid ipv6 hextets that parseInt would otherwise partially accept', () => {
+    const headers = new Headers();
+    headers.set('x-real-ip', '2001:db8:0x1::1');
+
+    expect(extractClientIp(headers, ['x-real-ip'])).toBeNull();
+  });
+
+  it('rejects invalid ipv4 that parseInt would otherwise partially accept', () => {
+    const headers = new Headers();
+    headers.set('x-real-ip', '203.0.113.10abc');
+
+    expect(extractClientIp(headers, ['x-real-ip'])).toBeNull();
   });
 });

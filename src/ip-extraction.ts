@@ -1,9 +1,8 @@
 import { INVALID_IP_TOKENS } from './constants';
-import { Optional } from './types';
+import type { Ipv4Tuple, Optional } from './types';
 
 const IPV4_WITH_PORT_RE = /^(?:\d{1,3}\.){3}\d{1,3}:\d+$/;
 
-type Ipv4Tuple = [number, number, number, number];
 
 /**
  * extract a client ip from headers using a precedence list.
@@ -34,70 +33,209 @@ export function extractClientIp(
     const normalizedName = headerName.toLowerCase();
 
     if (normalizedName === 'forwarded') {
-      const parsed = parseForwarded(value);
-      const ip = normalizeIpCandidate(parsed);
+      const candidates = parseForwardedForIdentifiers(value);
+      for (const c of candidates) {
+        const ip = normalizeIpCandidate(c);
+        if (ip !== null) return ip;
+      }
+      continue;
+    }
+
+    if (normalizedName === 'x-forwarded-for') {
+      const ip = scanXForwardedFor(value);
       if (ip !== null) return ip;
       continue;
     }
 
-    const candidate =
-      normalizedName === 'x-forwarded-for'
-        ? takeFirstListEntry(value)
-        : value.trim();
-
-    const ip = normalizeIpCandidate(candidate);
+    const ip = normalizeIpCandidate(value.trim());
     if (ip !== null) return ip;
   }
 
   return null;
 }
 
-function parseForwarded(value: string): Optional<string> {
-  const entries = value.split(',');
+function scanXForwardedFor(value: string): Optional<string> {
+  const parts = value.split(',');
+  for (const part of parts) {
+    const ip = normalizeIpCandidate(part.trim());
+    if (ip !== null) return ip;
+  }
+  return null;
+}
+
+function parseForwardedForIdentifiers(value: string): readonly string[] {
+  const entries = splitOutsideQuotes(value, ',');
+  const out: string[] = [];
 
   for (const entry of entries) {
-    const directives = entry.trim().split(';');
+    const directives = splitOutsideQuotes(entry, ';');
 
     for (const directive of directives) {
-      const [rawKey, rawValue] = directive.split('=');
-      if (rawKey === undefined || rawValue === undefined) continue;
+      const trimmed = directive.trim();
+      if (trimmed === '') continue;
 
-      if (rawKey.trim().toLowerCase() !== 'for') continue;
+      const eq = trimmed.indexOf('=');
+      if (eq < 0) continue;
 
-      const cleaned = cleanForwardedIdentifier(rawValue.trim());
-      if (cleaned !== null) return cleaned;
+      const rawKey = trimmed.slice(0, eq).trim().toLowerCase();
+      if (rawKey !== 'for') continue;
+
+      const rawValue = trimmed.slice(eq + 1).trim();
+      const parsedValue = parseForwardedValue(rawValue);
+      if (parsedValue === null) continue;
+
+      const cleaned = cleanForwardedIdentifier(parsedValue);
+      if (cleaned !== null) out.push(cleaned);
     }
+  }
+
+  return out;
+}
+
+/**
+ * splits on a single separator char, but only when not inside a quoted-string.
+ * supports backslash escapes inside quotes so \" does not terminate the quote.
+ */
+function splitOutsideQuotes(input: string, sep: ',' | ';'): string[] {
+  const out: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  let escaped = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i]!;
+
+    if (inQuotes) {
+      if (escaped) {
+        cur += ch;
+        escaped = false;
+        continue;
+      }
+      if (ch === '\\') {
+        cur += ch;
+        escaped = true;
+        continue;
+      }
+      if (ch === '"') {
+        cur += ch;
+        inQuotes = false;
+        continue;
+      }
+      cur += ch;
+      continue;
+    }
+
+    if (ch === '"') {
+      cur += ch;
+      inQuotes = true;
+      continue;
+    }
+
+    if (ch === sep) {
+      out.push(cur);
+      cur = '';
+      continue;
+    }
+
+    cur += ch;
+  }
+
+  out.push(cur);
+  return out;
+}
+
+function parseForwardedValue(raw: string): Optional<string> {
+  const s = raw.trim();
+  if (s === '') return null;
+
+  if (s.startsWith('"')) {
+    return parseQuotedString(s);
+  }
+
+  // token form. we keep it as-is (trimmed) and validate later as ip literal only.
+  if (/\s/.test(s)) return null;
+
+  return s;
+}
+
+/**
+ * parses a quoted-string, returning the unescaped content.
+ * rejects garbage after the closing quote (only ows is allowed).
+ */
+function parseQuotedString(input: string): Optional<string> {
+  if (!input.startsWith('"')) return null;
+
+  let out = '';
+  let escaped = false;
+
+  for (let i = 1; i < input.length; i++) {
+    const ch = input[i]!;
+
+    if (escaped) {
+      out += ch;
+      escaped = false;
+      continue;
+    }
+
+    if (ch === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      const rest = input.slice(i + 1).trim();
+      if (rest !== '') return null;
+      return out;
+    }
+
+    out += ch;
   }
 
   return null;
 }
 
 function cleanForwardedIdentifier(value: string): Optional<string> {
-  const unquoted =
-    value.startsWith('"') && value.endsWith('"') && value.length >= 2
-      ? value.slice(1, -1)
-      : value;
-
-  const trimmed = unquoted.trim();
+  const trimmed = value.trim();
   if (trimmed === '') return null;
 
-  if (trimmed.startsWith('[')) {
-    const closingIndex = trimmed.indexOf(']');
-    if (closingIndex > 1) return trimmed.slice(1, closingIndex);
-    return null;
+  // tolerate accidental quoting if upstream parsing didn't already unquote.
+  const unquoted =
+    trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2
+      ? trimmed.slice(1, -1).trim()
+      : trimmed;
+
+  if (unquoted === '') return null;
+
+  if (unquoted.startsWith('[')) {
+    return stripBracketedIpv6AndOptionalPort(unquoted);
   }
 
   // only strip ports for plain ipv4:port to avoid false positives on ipv6 forms.
-  if (IPV4_WITH_PORT_RE.test(trimmed)) {
-    return trimmed.slice(0, trimmed.lastIndexOf(':'));
+  if (IPV4_WITH_PORT_RE.test(unquoted)) {
+    return unquoted.slice(0, unquoted.lastIndexOf(':'));
   }
 
-  return trimmed;
+  return unquoted;
 }
 
-function takeFirstListEntry(value: string): string {
-  const [first = ''] = value.split(',');
-  return first.trim();
+function stripBracketedIpv6AndOptionalPort(value: string): Optional<string> {
+  const closingIndex = value.indexOf(']');
+  if (closingIndex <= 1) return null;
+
+  const inside = value.slice(1, closingIndex);
+  const rest = value.slice(closingIndex + 1);
+
+  if (rest === '') return inside;
+
+  if (!rest.startsWith(':')) return null;
+
+  const portStr = rest.slice(1);
+  if (!/^\d+$/.test(portStr)) return null;
+
+  const port = Number.parseInt(portStr, 10);
+  if (!Number.isFinite(port) || port < 0 || port > 65535) return null;
+
+  return inside;
 }
 
 function normalizeIpCandidate(value: Optional<string>): Optional<string> {
@@ -115,14 +253,11 @@ function normalizeIpCandidate(value: Optional<string>): Optional<string> {
 
   let candidate = trimmed;
 
-  // accept bracketed ipv6 in any header, not just forwarded.
+  // accept bracketed ipv6 in any header, not just forwarded, but only with optional :port.
   if (candidate.startsWith('[')) {
-    const closingIndex = candidate.indexOf(']');
-    if (closingIndex > 1) {
-      candidate = candidate.slice(1, closingIndex);
-    } else {
-      return null;
-    }
+    const stripped = stripBracketedIpv6AndOptionalPort(candidate);
+    if (stripped === null) return null;
+    candidate = stripped;
   }
 
   if (IPV4_WITH_PORT_RE.test(candidate)) {
@@ -232,6 +367,8 @@ function parseIpv6Groups(parts: string[]): Optional<number[]> {
     }
 
     if (p.length > 4) return null;
+    if (!/^[0-9a-f]{1,4}$/i.test(p)) return null;
+
     const n = Number.parseInt(p, 16);
     if (!Number.isFinite(n) || n < 0 || n > 0xffff) return null;
     out.push(n);

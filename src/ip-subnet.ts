@@ -1,5 +1,4 @@
-import type { Optional } from './types';
-import type { SizedTuple } from 'typyx';
+import type { Ipv4Tuple, Optional } from './types';
 
 /**
  * normalize an ip string for bucket-based identity.
@@ -91,6 +90,9 @@ function parseIpv6ToBytes(input: string): Optional<Uint8Array> {
   let rightParts: string[] = [];
 
   if (dbl >= 0) {
+    // only one "::" is allowed in a valid ipv6 literal.
+    if (s.indexOf('::', dbl + 1) !== -1) return null;
+
     const leftRaw = s.slice(0, dbl);
     const rightRaw = s.slice(dbl + 2);
 
@@ -141,6 +143,8 @@ function parseIpv6Groups(parts: string[]): Optional<number[]> {
     }
 
     if (p.length > 4) return null;
+    if (!/^[0-9a-f]{1,4}$/i.test(p)) return null;
+
     const n = Number.parseInt(p, 16);
     if (!Number.isFinite(n) || n < 0 || n > 0xffff) return null;
     out.push(n);
@@ -163,12 +167,23 @@ function groupsToBytes(groups: number[]): Optional<Uint8Array> {
   return bytes;
 }
 
-function parseIpv4(s: string): Optional<SizedTuple<number, 4>> {
+function parseIpv4(s: string): Optional<Ipv4Tuple> {
   const parts = s.split('.');
   if (parts.length !== 4) return null;
 
-  const nums = parts.map((x) => Number.parseInt(x, 10));
-  if (nums.some((n) => !Number.isFinite(n) || n < 0 || n > 255)) return null;
+  const nums: number[] = [];
+
+  for (const part of parts) {
+    if (part === '') return null;
+    if (!/^\d+$/.test(part)) return null;
+
+    const n = Number.parseInt(part, 10);
+    if (!Number.isFinite(n) || n < 0 || n > 255) return null;
+
+    if (part.length > 1 && part.startsWith('0')) return null;
+
+    nums.push(n);
+  }
 
   return [nums[0]!, nums[1]!, nums[2]!, nums[3]!];
 }

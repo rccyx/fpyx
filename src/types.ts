@@ -1,3 +1,5 @@
+import { SizedTuple } from "typyx";
+
 export type Optional<T> = T | null;
 export type Possible<T> = T | undefined;
 
@@ -118,3 +120,5 @@ export interface FingerprintOptions {
 
 /** A function that hashes a `Uint8Array` and returns a string. */
 export type HashFunction = (input: Uint8Array) => string;
+
+export type Ipv4Tuple = SizedTuple<number, 4>;

@@ -102,6 +102,7 @@ describe('normalizeIpForBucket', () => {
     expect(() => normalizeIpForBucket('2001:db8::1', 0)).toThrow(RangeError);
     expect(() => normalizeIpForBucket('2001:db8::1', 129)).toThrow(RangeError);
   });
+
   it('lowercases ipv6 input before canonicalizing', () => {
     expect(normalizeIpForBucket('2001:DB8::1', 128)).toBe(
       '2001:0db8:0000:0000:0000:0000:0000:0001'
@@ -117,5 +118,18 @@ describe('normalizeIpForBucket', () => {
 
   it('throws for non-integer ipv6Subnet', () => {
     expect(() => normalizeIpForBucket('2001:db8::1', 56.5)).toThrow(RangeError);
+  });
+
+  it('rejects invalid ipv6 hextets that parseInt would otherwise partially accept (returns raw)', () => {
+    expect(normalizeIpForBucket('2001:db8:0x1::1', 128)).toBe(
+      '2001:db8:0x1::1'
+    );
+    expect(normalizeIpForBucket('2001:db8:1g::1', 128)).toBe('2001:db8:1g::1');
+  });
+
+  it('rejects invalid embedded ipv4 that parseInt would otherwise partially accept (returns raw)', () => {
+    expect(normalizeIpForBucket('::ffff:203.0.113.10abc', undefined)).toBe(
+      '::ffff:203.0.113.10abc'
+    );
   });
 });
