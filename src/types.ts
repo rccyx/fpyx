@@ -2,9 +2,10 @@ export type Optional<T> = T | null;
 export type Possible<T> = T | undefined;
 
 /**
- * compact result returned by `fingerprint`.
+ * The result returned by {@link fingerprint}.
  *
- * `hash` is derived from `parts.join('|')` hashed with the configured hash function.
+ * `hash` is produced by hashing `parts.join('|')` with the configured hash
+ * function (default: {@link fnv1a64Hex}).
  */
 export interface FingerprintResult {
   readonly hash: string;
@@ -13,12 +14,12 @@ export interface FingerprintResult {
 }
 
 /**
- * identity traits used to derive the fingerprint.
+ * The resolved identity traits used to derive the fingerprint.
  *
- * invariant:
- * actorId and ip are mutually exclusive anchors.
- * if actorId is non-null, it is the anchor and ip is null.
- * otherwise ip is the anchor and actorId is null.
+ * **Invariant:** `actorId` and `ip` are mutually exclusive identity anchors.
+ * When `actorId` is non-null it is the sole anchor and `ip` is `null`.
+ * When `actorId` is `null`, `ip` is the anchor (and may itself be `null` if
+ * no valid IP could be extracted from the request headers).
  */
 export interface FingerprintTraits {
   readonly actorId: Optional<string>;
@@ -28,9 +29,12 @@ export interface FingerprintTraits {
 }
 
 /**
- * data source accepted by `fingerprint`.
+ * The request data source accepted by {@link fingerprint}.
  *
- * supports fetch request objects and lightweight objects for edge runtimes.
+ * Accepts a standard Fetch API `Request` object, or a lightweight plain
+ * object carrying only the fields that `fingerprint` needs. The plain-object
+ * form is useful in edge runtimes where constructing a full `Request` is
+ * unnecessary.
  */
 export type FingerprintSource =
   | Request
@@ -41,56 +45,76 @@ export type FingerprintSource =
     };
 
 /**
- * options for identity derivation.
+ * Configuration options for {@link fingerprint}.
  *
- * the core decision is anchor precedence:
- * provide `actorId` when you have a trusted authenticated identity.
- * otherwise fpyx anchors on the client ip bucket.
+ * All fields are optional. When omitted, `fingerprint` anchors identity on
+ * the client IP extracted from {@link DEFAULT_IP_HEADERS}, hashed with
+ * {@link fnv1a64Hex}, with no method or path scoping and IPv6 masked to `/56`.
  */
 export interface FingerprintOptions {
   /**
-   * include the http method in the key as a scoping dimension.
+   * When `true`, the HTTP method is appended to the key as a scoping
+   * dimension, producing distinct fingerprints for different methods on the
+   * same identity (e.g. `GET /users` vs. `POST /users`).
    */
   readonly includeMethod?: boolean;
 
   /**
-   * include the url pathname in the key as a scoping dimension.
+   * When `true`, the URL pathname is appended to the key as a scoping
+   * dimension. Use `pathNormalizer` to collapse dynamic segments (e.g. user
+   * IDs) into a consistent pattern before they are included.
    */
   readonly includePath?: boolean;
 
   /**
-   * override the hash function used to hash the payload bytes.
+   * Overrides the hash function used to hash the assembled key parts.
    *
-   * must be deterministic.
+   * The function receives a `Uint8Array` of UTF-8 encoded bytes and must
+   * return a deterministic string. The default is {@link fnv1a64Hex}.
    */
   readonly hashFn?: HashFunction;
 
   /**
-   * ordered list of headers to consult for client ip extraction.
+   * Overrides the ordered list of headers consulted when extracting the client
+   * IP address.
    *
-   * only include headers that your edge overwrites.
+   * Only include headers that your edge proxy is guaranteed to overwrite on
+   * every inbound request. See {@link DEFAULT_IP_HEADERS} for the built-in
+   * precedence list.
    */
   readonly ipHeaders?: readonly string[];
 
   /**
-   * normalize a pathname before it is included when `includePath` is enabled.
+   * A function applied to the URL pathname before it is included in the key.
+   * Only called when `includePath` is `true`.
+   *
+   * Use this to normalize dynamic route segments into stable patterns, for
+   * example replacing numeric IDs with `:id` so that
+   * `/users/123` and `/users/456` map to the same rate-limit bucket.
    */
   readonly pathNormalizer?: (path: string) => string;
 
   /**
-   * ipv6 subnet prefix length for masking.
+   * The IPv6 subnet prefix length used when masking the client IP bucket.
    *
-   * if undefined, defaults to /56.
+   * Must be an integer in the range `[1, 128]`. Defaults to `56`.
+   *
+   * A `/56` default reflects common residential ISP allocation granularity,
+   * grouping all addresses within a typical household prefix into one bucket
+   * regardless of IPv6 privacy extensions.
    */
   readonly ipv6Subnet?: number;
 
   /**
-   * trusted caller-provided actor identity (session id, api key, user id).
+   * A trusted, caller-provided actor identity such as a session ID, user ID,
+   * or API key.
    *
-   * if present and non-empty after trim, it fully replaces ip anchoring.
-   * fpyx will not concatenate this with ip.
+   * When present and non-empty after trimming, this value fully replaces
+   * network-based identity. No IP address is extracted or included in the
+   * fingerprint. The two anchor types are never mixed.
    */
   readonly actorId?: Optional<string>;
 }
 
+/** A function that hashes a `Uint8Array` and returns a string. */
 export type HashFunction = (input: Uint8Array) => string;

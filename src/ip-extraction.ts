@@ -8,14 +8,12 @@ type Ipv4Tuple = [number, number, number, number];
 /**
  * extract a client ip from headers using a precedence list.
  *
- * security posture:
  * this function only accepts ip literals (ipv4 dotted quad, or ipv6 literal).
  * rfc 7239 explicitly allows "unknown" and obfuscated identifiers (for example "hidden")
  * in the forwarded header. those are not ip addresses. accepting them would let an attacker
  * supply arbitrary strings and poison an abuse anchor.
  *
- * trust posture:
- * this function does not determine whether a header is trustworthy.
+ * also: this function does not determine whether a header is trustworthy.
  * you must only use headers that your own edge proxy overwrites.
  *
  * @param headers request headers
