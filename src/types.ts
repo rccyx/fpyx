@@ -1,4 +1,4 @@
-import { SizedTuple } from "typyx";
+import { SizedTuple } from 'typyx';
 
 export type Optional<T> = T | null;
 export type Possible<T> = T | undefined;

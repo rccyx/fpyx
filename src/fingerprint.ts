@@ -94,7 +94,7 @@ export function fingerprint(
 
   const parts = buildParts(traits);
   const hashFn: HashFunction = options?.hashFn ?? fnv1a64Hex;
-  const hash = hashFn(textEncoder.encode(parts.join('|')))
+  const hash = hashFn(textEncoder.encode(parts.join('|')));
 
   return {
     hash,
