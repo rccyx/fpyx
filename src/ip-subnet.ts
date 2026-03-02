@@ -1,19 +1,39 @@
 import type { Ipv4Tuple, Optional } from './types';
 
 /**
- * normalize an ip string for bucket-based identity.
+ * Normalizes an IP address string for bucket-based identity use.
  *
- * full ipv6 is too granular under privacy extensions, so we subnet-mask.
- * default ipv6 mask is /56, which is a common residential allocation granularity.
- * ipv4-mapped ipv6 (::ffff:a.b.c.d) is normalized to ipv4 to avoid collapsing under masking.
- * zone identifiers (fe80::1%eth0) are stripped because they are interface-local routing hints,
- * not part of the address bits.
+ * This function ensures a consistent "bucket" identity key for network addresses,
+ * supporting both IPv4 and IPv6. It applies the following normalization steps:
  *
- * @see https://datatracker.ietf.org/doc/html/rfc4291
- * @see https://datatracker.ietf.org/doc/html/rfc5952
- * @see https://www.iana.org/assignments/iana-ipv6-special-registry/iana-ipv6-special-registry.xhtml
- * @see https://datatracker.ietf.org/doc/html/rfc4007
- * @see https://datatracker.ietf.org/doc/html/rfc6874
+ * - **Zone Stripping:** Removes any IPv6 zone identifier (e.g., `fe80::1%eth0`), as this is an interface-local routing hint, not part of the address bits.
+ * - **IPv6 Normalization and Masking:** For IPv6, applies a subnet mask (default prefix length `/56`, common for residential allocations)
+ *   to mitigate excessive granularity from privacy extensions. This results in a normalized, masked IPv6 string.
+ * - **IPv4-Mapped IPv6:** If the address is an IPv4-mapped IPv6 (`::ffff:a.b.c.d`), it is converted back to an IPv4 string to avoid
+ *   double-bucketing and collapsing distinct IPv4s via IPv6 subnetting.
+ * - **Case Normalization:** Lowercases all hexadecimal characters for canonicalization.
+ *
+ * This normalization is RFC-compliant and suitable for deriving privacy-friendly, consistent identity keys in edge fingerprinting, rate limiting, and similar use cases.
+ *
+ * #### Examples
+ * ```typescript
+ * normalizeIpForBucket("8.8.8.8");                    // "8.8.8.8"
+ * normalizeIpForBucket("2001:db8:abcd:ef01::1234");   // "2001:db8:abcd:ef00:0000:0000:0000:0000"
+ * normalizeIpForBucket("::FFFF:192.0.2.1");           // "192.0.2.1"
+ * normalizeIpForBucket("fe80::1%eth0");               // "fe80:0000:0000:0000:0000:0000:0000:0000"
+ * ```
+ *
+ * @param ip - The input IP address string (IPv4, IPv6, or IPv4-mapped IPv6). May be `null`.
+ * @param ipv6Subnet - Optional. The IPv6 subnet prefix length to apply as a mask (integer, 1–128). Defaults to 56.
+ * @returns The normalized, canonicalized network address string, or `null` if the input was `null`.
+ *
+ * @throws {RangeError} If `ipv6Subnet` is not an integer in the range 1–128.
+ *
+ * @see [RFC 4291: IPv6 Addressing Architecture](https://datatracker.ietf.org/doc/html/rfc4291)
+ * @see [RFC 5952: IPv6 Text Representation](https://datatracker.ietf.org/doc/html/rfc5952)
+ * @see [IANA IPv6 Special-Purpose Registry](https://www.iana.org/assignments/iana-ipv6-special-registry/iana-ipv6-special-registry.xhtml)
+ * @see [RFC 4007: IPv6 Scoped Address Architecture](https://datatracker.ietf.org/doc/html/rfc4007)
+ * @see [RFC 6874: Zone Identifiers in IPv6 Addresses](https://datatracker.ietf.org/doc/html/rfc6874)
  */
 export function normalizeIpForBucket(
   ip: Optional<string>,

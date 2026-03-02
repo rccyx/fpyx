@@ -9,70 +9,87 @@ import type {
 import { DEFAULT_IP_HEADERS } from './constants';
 import { fnv1a64Hex } from './hash';
 import { extractClientIp } from './ip-extraction';
-import { extractMethod, extractPath, buildParts } from './utils';
+import { buildParts } from './utils';
 import { normalizeIpForBucket } from './ip-subnet';
+import { Maybe } from 'typyx';
 
 const textEncoder = new TextEncoder();
 
 /**
- * Normalizes a caller-supplied actor ID to a trimmed string, or `null` if the
- * value is absent, explicitly `null`, or blank after trimming.
+ * Normalize a potential actor identifier (such as a user, session, or API key).
+ *
+ * Trims whitespace and returns `null` if the value is missing or empty.
+ * This ensures consistency and prevents accidental misuse of blank identifiers.
+ *
+ * @param value - The input actor identifier.
+ * @returns The normalized actorId, or `null` if not provided or empty.
  */
-function normalizeActorId(
-  value: Optional<string> | undefined
-): Optional<string> {
+function normalizeActorId(value: Maybe<string>): Optional<string> {
   if (value === undefined || value === null) return null;
   const trimmed = value.trim();
   return trimmed === '' ? null : trimmed;
 }
 
 /**
- * Derives an abuse-aware identity key suitable for request shaping such as
- * rate limiting, quotas, and throttling.
+ * Normalize an optional user-specified fingerprint scope string.
  *
- * ---
+ * Trims excess whitespace and returns `null` for empty, undefined, or null values.
+ * Used to logically partition keyspaces without introducing identity entropy.
  *
- * ### Identity precedence
+ * @param value - The input scope value.
+ * @returns The normalized scope string, or `null`.
+ */
+function normalizeScope(value: Maybe<string>): Optional<string> {
+  if (value === undefined || value === null) return null;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+/**
+ * Generates a cryptographically-stable, abuse-resistant identity fingerprint for HTTP requests.
  *
- * If `actorId` is provided and non-empty after trimming, it becomes the sole
- * identity anchor. No IP information is included. This is the preferred mode
- * when a trusted, authenticated identity is available (e.g. a session ID, API
- * key, or user ID).
+ * This function derives a canonical, stable fingerprint string for a given request source and options,
+ * optimized for use in rate limiting, abuse detection, quotas, and similar shaping controls.
+ * 
+ * ### Identity Anchor
+ * - The anchor is chosen in strict priority order:
+ *   1. **Actor ID:** If `actorId` is provided and non-empty, it takes precedence (e.g., user/session/API key).
+ *      - When actorId is present, the client network address (IP) is ignored.
+ *   2. **IP Address:** If no actorId is present, the client IP (normalized and subnet-masked) is used.
  *
- * When `actorId` is absent or blank, identity anchors on the client IP
- * address, normalized to a subnet bucket via {@link normalizeIpForBucket}.
- * The two anchors are never mixed.
+ * ### Scope Partitioning
+ * - An optional, user-provided opaque string (`scope`) may be appended for logical partitioning of the
+ *   key space (e.g., distinguishing between different product environments, tenants, or endpoints).
+ *   - The scope is always trimmed and set to `null` if empty.
+ *   - It participates in partitioning only, never in the core identity entropy.
  *
- * ### Scoping
+ * ### Trust Model & Security
+ * - Network identity is extracted from trusted headers only. The caller **must** ensure only trustworthy headers
+ *   (usually injected by a tightly-controlled edge/proxy) are provided.
+ * - This function **does not** attempt to verify downstream authenticity.
+ * - See [RFC 7239](https://datatracker.ietf.org/doc/html/rfc7239) and [RFC 4291](https://datatracker.ietf.org/doc/html/rfc4291)
+ *   for guidance on network identity and IPv6 subnets.
  *
- * `includeMethod` and `includePath` append the HTTP method and URL pathname to
- * the key, partitioning the key space so that different operations on the same
- * identity produce distinct fingerprints. Scoping dimensions are not treated
- * as identity entropy, they are purely additive namespace separators.
+ * ### Example
+ * ```ts
+ * const result = fingerprint(request, {
+ *   actorId: user.id,
+ *   ipHeaders: ['x-forwarded-for'],
+ *   scope: 'api/v1/quotas'
+ * });
+ * // result: { hash, parts, traits }
+ * ```
  *
- * ### Trust model
- *
- * {@link extractClientIp} parses headers but cannot establish trust. You must
- * only pass headers that your edge proxy is guaranteed to overwrite. If an
- * upstream header is forwarded as-is, a client can supply an arbitrary IP and
- * bypass IP-based rate limiting.
- *
- * @param source - A Fetch API `Request`, or a lightweight
- *   `{ headers, method?, url? }` object compatible with edge runtimes.
- * @param options - Configuration for identity precedence, IP parsing, scoping,
- *   and hashing.
- * @returns A {@link FingerprintResult} containing the hash, the ordered parts
- *   used to produce it, and the resolved identity traits.
- *
- * @see https://datatracker.ietf.org/doc/html/rfc7239
- * @see https://datatracker.ietf.org/doc/html/rfc4291
+ * @param source   - A Fetch `Request` or `{headers: Headers}` object (env-agnostic).
+ * @param options  - Fingerprinting options (actorId, ip headers, scope, hash function, etc).
+ * @returns        - A canonical fingerprint result: hash, parts (components), and resolved traits.
  */
 export function fingerprint(
   source: FingerprintSource,
   options?: FingerprintOptions
 ): FingerprintResult {
   const actorId = normalizeActorId(options?.actorId);
-
+  const scope = normalizeScope(options?.scope);
   const traits = {
     actorId,
     ip:
@@ -85,16 +102,12 @@ export function fingerprint(
             options?.ipv6Subnet
           )
         : null,
-    method: options?.includeMethod === true ? extractMethod(source) : null,
-    path:
-      options?.includePath === true
-        ? extractPath(source.url, options?.pathNormalizer)
-        : null,
+    scope,
   } satisfies FingerprintTraits;
 
   const parts = buildParts(traits);
-  const hashFn: HashFunction = options?.hashFn ?? fnv1a64Hex;
-  const hash = hashFn(textEncoder.encode(parts.join('|')))
+  const hashFn = options?.hashFn ?? fnv1a64Hex satisfies HashFunction;
+  const hash = hashFn(textEncoder.encode(parts.join('|')));
 
   return {
     hash,

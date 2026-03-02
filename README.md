@@ -28,9 +28,6 @@
 
 Zero dependencies. Zero I/O. Zero crypto APIs. Works everywhere JavaScript runs with Fetch-standard `Request`/`Headers`: Node.js 18+, Bun, Deno, Cloudflare Workers, Fastly Compute, Vercel Edge, Netlify Edge, and modern browsers.
 
-## How
-
-fpyx builds stable, compact identifiers from coarse HTTP request traits (trusted client IP, User-Agent, Accept-Language, and optional method/path), then hashes them with FNV-1a 64-bit for fast, cheap rate limiting keys.
 
 > [!IMPORTANT]
 > This is for rate limiting and quota buckets, **not identity or authentication.**
@@ -38,6 +35,145 @@ fpyx builds stable, compact identifiers from coarse HTTP request traits (trusted
 ## Why 
 
 Wondering how this differs from express-rate-limit, rate-limiter-flexible, Upstash Rate Limit, FingerprintJS, or simple IP-based key generators? See the full [comparison](./comparison) over why fpyx exists.
+
+
+TL;DR: `req.ip` is not enough, and can cause you to get DDoS'd.
+No one in the ecosystem has a tool for getting the exact fngerpitng hash, extremely fast, and GDPR compliant, express-rate lilit does somthing like it (where it deos a bunch of shit with IPV6) but it's just for express, what if you change your framework or don't like the full bloat? you just want an identifier to plug into any rate limiter of choice you have?
+
+See this is the problem,
+
+"I use vercel/CF", great, which means you protect the whole site; but what if u want to throttle /login differently than /dashboard? or you want to throttle a logged in sessioned user or a random anaomous person? you're going to use the IP? well, not good enough, it looks like it's working till you get fucked, (it happened to me), so what's the soltuion?
+
+fpyx solevs this, it does one job & one job only, give u a fingerint hash to plug in any limiter or counter etc, ue FN-1V for super fast hashing, unlike SHA256 which is slower, 
+it just answers one question, given this request, "Who, exactly, is this request coming from?"
+
+so, the probelm is that
+Modern internet providers give every home a "prefix" (usually a /56 or /64) that contains trillions of IP addresses. A bot can switch IPs for every single request. fpyx masks the IP. It says: "I don't care if your last few digits changed; you're still in the same house. You are the same person."
+
+The official standard for forwarding IPs (Forwarded: for=...) is a nightmare to read. It allows quotes, semicolons, and backslashes. Most simple code breaks when it sees a complex one.
+req.headers['x-forwarded-for']; is a nightmare , fpyx uses a "State Machine" to read it character-by-character, making sure an attacker hasn't hidden a second "identity" inside a pair of quotes.
+
+Instead of giving you a messy string, it gives you a 64-bit Hash (like a430d84680aabd0b).
+
+If the user is logged in: The hash is based on their User ID.
+
+If the user is a guest: The hash is based on their Real IP (Masked).
+
+The library is the Refining Plant.
+
+Input: A messy, potentially faked HTTP Request.
+
+Output: A clean, honest, 16-character ID.
+
+"but why not just supply the actor ID" well u can, porblem is 
+if you block them on dashboard spams, u diont want to block the mto the rest
+
+Without fpyx: You'd have to manually write user_123 + "POST" + "/login".
+
+With fpyx: You just flip a switch: includeMethod: true.
+
+
+now methods 
+You might allow:
+
+100 GETs per minute
+
+10 POSTs per minute
+
+If you don’t include method, they collapse into one counter.
+
+Path is the URL pathname only, not the domain, not query string.
+
+For:
+
+https://api.example.com/users/123/profile?tab=settings
+
+Path is:
+
+/users/123/profile
+
+When you enable includePath, you’re saying:
+
+“Treat different endpoints as different buckets.”
+
+Without path scoping:
+
+ip:203.0.113.10
+
+With path scoping:
+
+ip:203.0.113.10|path:/users/123/profile
+
+Now each route has independent limits.
+
+
+now why would we need a normalizer
+
+Problem:
+
+Dynamic routes explode cardinality.
+
+If you fingerprint raw path:
+
+/users/1
+/users/2
+/users/3
+/users/999999
+
+Each becomes a different bucket.
+
+That’s bad.
+
+
+Rate limiting should usually apply to route pattern, not instance.
+
+You don’t want 1 million separate buckets for 1 million user IDs.
+
+So pathNormalizer lets you transform the path before hashing.
+
+Example:
+
+pathNormalizer: (path) => path.replace(/\d+/g, ':id')
+
+Now:
+
+/users/123/profile
+/users/456/profile
+
+Both normalize to:
+
+/users/:id/profile
+
+Now they collapse into one bucket.
+
+In a real framework, you might do:
+
+Express:
+
+pathOverride: req.route.path
+
+Hono:
+
+pathOverride: c.req.routePath
+
+Next.js:
+
+pathOverride: req.nextUrl.pathname
+
+If your framework already gives you the pattern, you don’t even need pathNormalizer.
+
+So conceptually:
+
+Actor → who
+IP → fallback who
+Method → what type of action
+Path → what resource
+Path normalizer → collapse dynamic variance
+
+
+It handles "poisoning" attempts. For example, it correctly parses quoted strings in headers and ignores "unknown" or obfuscated tokens that could be used to trick a simpler fingerprinting script.
+
+
 
 ## Installation
 

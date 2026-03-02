@@ -11,33 +11,23 @@ describe('fnv1a64Hex', () => {
 });
 
 describe('fingerprint', () => {
-  it('builds a stable payload from the identity anchor plus optional scoping', () => {
+  it('builds a stable payload from the identity anchor plus optional scope', () => {
     const request = new Request('https://api.example.com/v1/resource', {
       method: 'POST',
       headers: {
         'cf-connecting-ip': '203.0.113.10',
-        'user-agent': 'TestAgent/1.0',
-        'accept-language': 'en-US,en;q=0.9',
       },
     });
 
-    const result = fingerprint(request, {
-      includeMethod: true,
-      includePath: true,
-    });
+    const result = fingerprint(request, { scope: 'users.create' });
 
     expect(result.traits).toEqual({
       actorId: null,
       ip: '203.0.113.10',
-      method: 'POST',
-      path: '/v1/resource',
+      scope: 'users.create',
     });
 
-    expect(result.parts).toEqual([
-      'ip:203.0.113.10',
-      'method:POST',
-      'path:/v1/resource',
-    ]);
+    expect(result.parts).toEqual(['ip:203.0.113.10', 'scope:users.create']);
 
     expect(result.hash).toBe(
       fnv1a64Hex(encoder.encode(result.parts.join('|')))
@@ -69,9 +59,12 @@ describe('fingerprint', () => {
     expect(result.traits).toEqual({
       actorId: null,
       ip: '2001:0db8:cafe:0000:0000:0000:0000:0017',
-      method: null,
-      path: null,
+      scope: null,
     });
+
+    expect(result.parts).toEqual([
+      'ip:2001:0db8:cafe:0000:0000:0000:0000:0017',
+    ]);
   });
 
   it('ignores unknown Forwarded identifiers', () => {
@@ -81,26 +74,6 @@ describe('fingerprint', () => {
     const result = fingerprint({ headers }, { ipHeaders: ['forwarded'] });
     expect(result.traits.ip).toBeNull();
     expect(result.parts[0]).toBe('ip:');
-  });
-
-  it('supports path normalization', () => {
-    const request = new Request('https://api.example.com/users/123/profile', {
-      method: 'GET',
-      headers: {
-        'cf-connecting-ip': '203.0.113.10',
-      },
-    });
-
-    const result = fingerprint(request, {
-      includePath: true,
-      pathNormalizer: (path) => path.replace(/\d+/g, ':id'),
-    });
-
-    expect(result.traits.path).toBe('/users/:id/profile');
-    expect(result.parts).toEqual([
-      'ip:203.0.113.10',
-      'path:/users/:id/profile',
-    ]);
   });
 
   it('uses actorId as a full replacement anchor (no mixing with ip)', () => {
@@ -114,23 +87,16 @@ describe('fingerprint', () => {
 
     const result = fingerprint(request, {
       actorId: 'user_123',
-      includeMethod: true,
-      includePath: true,
+      scope: 'auth.login',
     });
 
     expect(result.traits).toEqual({
       actorId: 'user_123',
       ip: null,
-      method: 'POST',
-      path: '/v1/resource',
+      scope: 'auth.login',
     });
 
-    expect(result.parts[0]).toBe('actor:user_123');
-    expect(result.parts).toEqual([
-      'actor:user_123',
-      'method:POST',
-      'path:/v1/resource',
-    ]);
+    expect(result.parts).toEqual(['actor:user_123', 'scope:auth.login']);
   });
 
   it('accepts custom hash functions', () => {
@@ -145,7 +111,7 @@ describe('fingerprint', () => {
         .map((byte) => byte.toString(16).padStart(2, '0'))
         .join('');
 
-    const result = fingerprint(request, { hashFn });
+    const result = fingerprint(request, { hashFn, scope: 'read' });
 
     const expected = hashFn(encoder.encode(result.parts.join('|')));
     expect(result.hash).toBe(expected);
@@ -163,8 +129,7 @@ describe('fingerprint', () => {
     expect(result.traits).toEqual({
       actorId: 'user_123',
       ip: null,
-      method: null,
-      path: null,
+      scope: null,
     });
 
     expect(result.parts).toEqual(['actor:user_123']);
@@ -184,17 +149,37 @@ describe('fingerprint', () => {
     expect(result.parts[0]).toBe('ip:203.0.113.10');
   });
 
-  it('does not throw when includePath is true but url is missing on object source', () => {
-    const headers = new Headers();
-    headers.set('cf-connecting-ip', '203.0.113.10');
+  it('trims scope and includes it when non-empty', () => {
+    const request = new Request('https://api.example.com/v1/resource', {
+      headers: {
+        'cf-connecting-ip': '203.0.113.10',
+      },
+    });
 
-    const result = fingerprint({ headers }, { includePath: true });
+    const result = fingerprint(request, { scope: '  read  ' });
 
     expect(result.traits).toEqual({
       actorId: null,
       ip: '203.0.113.10',
-      method: null,
-      path: null,
+      scope: 'read',
+    });
+
+    expect(result.parts).toEqual(['ip:203.0.113.10', 'scope:read']);
+  });
+
+  it('treats empty/whitespace scope as absent', () => {
+    const request = new Request('https://api.example.com/v1/resource', {
+      headers: {
+        'cf-connecting-ip': '203.0.113.10',
+      },
+    });
+
+    const result = fingerprint(request, { scope: '   ' });
+
+    expect(result.traits).toEqual({
+      actorId: null,
+      ip: '203.0.113.10',
+      scope: null,
     });
 
     expect(result.parts).toEqual(['ip:203.0.113.10']);
@@ -209,7 +194,11 @@ describe('fingerprint', () => {
 
     const result = fingerprint(request);
 
-    expect(result.traits.ip).toBe('2001:0db8:abcd:1200:0000:0000:0000:0000');
+    expect(result.traits).toEqual({
+      actorId: null,
+      ip: '2001:0db8:abcd:1200:0000:0000:0000:0000',
+      scope: null,
+    });
   });
 
   it('normalizes ipv4-mapped ipv6 to ipv4 at the fingerprint level', () => {
@@ -228,19 +217,14 @@ describe('fingerprint', () => {
       headers: {},
     });
 
-    const result = fingerprint(request, {
-      includeMethod: true,
-      includePath: true,
-    });
+    const result = fingerprint(request, { scope: 'auth.login' });
 
     expect(result.traits).toEqual({
       actorId: null,
       ip: null,
-      method: 'POST',
-      path: '/v1/resource',
+      scope: 'auth.login',
     });
-
-    expect(result.parts).toEqual(['ip:', 'method:POST', 'path:/v1/resource']);
+    expect(result.parts).toEqual(['ip:', 'scope:auth.login']);
     expect(result.hash).toBe(
       fnv1a64Hex(encoder.encode(result.parts.join('|')))
     );

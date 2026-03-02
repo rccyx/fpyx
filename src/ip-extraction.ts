@@ -3,7 +3,6 @@ import type { Ipv4Tuple, Optional } from './types';
 
 const IPV4_WITH_PORT_RE = /^(?:\d{1,3}\.){3}\d{1,3}:\d+$/;
 
-
 /**
  * extract a client ip from headers using a precedence list.
  *
