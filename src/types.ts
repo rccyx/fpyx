@@ -1,8 +1,6 @@
-import { SizedTuple } from 'typyx';
-
 export type Optional<T> = T | null;
 export type Possible<T> = T | undefined;
-export type Maybe<T> = Possible<Optional<T>>
+export type Maybe<T> = Possible<Optional<T>>;
 
 /**
  * The result type returned by the {@link fingerprint} function.
@@ -81,7 +79,7 @@ export interface FingerprintOptions {
   /**
    * Specifies the ordered list of HTTP headers to consult
    * when extracting the client IP address from the request.
-   * 
+   *
    * Only include headers that your infrastructure guarantees to set and control;
    * do **not** include untrusted headers.
    */
@@ -122,4 +120,4 @@ export type HashFunction = (input: Uint8Array) => string;
  *
  * Example: `[192, 168, 0, 1]`
  */
-export type Ipv4Tuple = SizedTuple<number, 4>;
+export type Ipv4Tuple = [number, number, number, number];

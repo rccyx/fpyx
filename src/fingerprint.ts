@@ -11,35 +11,11 @@ import { fnv1a64Hex } from './hash';
 import { extractClientIp } from './ip-extraction';
 import { buildParts } from './utils';
 import { normalizeIpForBucket } from './ip-subnet';
-import { Maybe } from 'typyx';
+import { Maybe } from './types';
 
 const textEncoder = new TextEncoder();
 
-/**
- * Normalize a potential actor identifier (such as a user, session, or API key).
- *
- * Trims whitespace and returns `null` if the value is missing or empty.
- * This ensures consistency and prevents accidental misuse of blank identifiers.
- *
- * @param value - The input actor identifier.
- * @returns The normalized actorId, or `null` if not provided or empty.
- */
-function normalizeActorId(value: Maybe<string>): Optional<string> {
-  if (value === undefined || value === null) return null;
-  const trimmed = value.trim();
-  return trimmed === '' ? null : trimmed;
-}
-
-/**
- * Normalize an optional user-specified fingerprint scope string.
- *
- * Trims excess whitespace and returns `null` for empty, undefined, or null values.
- * Used to logically partition keyspaces without introducing identity entropy.
- *
- * @param value - The input scope value.
- * @returns The normalized scope string, or `null`.
- */
-function normalizeScope(value: Maybe<string>): Optional<string> {
+function normalizeStr(value: Maybe<string>): Optional<string> {
   if (value === undefined || value === null) return null;
   const trimmed = value.trim();
   return trimmed === '' ? null : trimmed;
@@ -50,7 +26,7 @@ function normalizeScope(value: Maybe<string>): Optional<string> {
  *
  * This function derives a canonical, stable fingerprint string for a given request source and options,
  * optimized for use in rate limiting, abuse detection, quotas, and similar shaping controls.
- * 
+ *
  * ### Identity Anchor
  * - The anchor is chosen in strict priority order:
  *   1. **Actor ID:** If `actorId` is provided and non-empty, it takes precedence (e.g., user/session/API key).
@@ -88,8 +64,8 @@ export function fingerprint(
   source: FingerprintSource,
   options?: FingerprintOptions
 ): FingerprintResult {
-  const actorId = normalizeActorId(options?.actorId);
-  const scope = normalizeScope(options?.scope);
+  const actorId = normalizeStr(options?.actorId);
+  const scope = normalizeStr(options?.scope);
   const traits = {
     actorId,
     ip:
@@ -106,7 +82,7 @@ export function fingerprint(
   } satisfies FingerprintTraits;
 
   const parts = buildParts(traits);
-  const hashFn = options?.hashFn ?? fnv1a64Hex satisfies HashFunction;
+  const hashFn: HashFunction = options?.hashFn ?? fnv1a64Hex;
   const hash = hashFn(textEncoder.encode(parts.join('|')));
 
   return {

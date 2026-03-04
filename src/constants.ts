@@ -1,11 +1,5 @@
-/**
- * @see https://datatracker.ietf.org/doc/rfc9923/
- */
 export const FNV_OFFSET_BASIS_64 = 0xcbf29ce484222325n;
 
-/**
- * @see https://datatracker.ietf.org/doc/rfc9923/
- */
 export const FNV_PRIME_64 = 0x100000001b3n;
 
 /**
@@ -13,7 +7,6 @@ export const FNV_PRIME_64 = 0x100000001b3n;
  *
  * js bigint does unbounded precision, fnv-1a is defined over fixed-width unsigned integers.
  *
- * @see https://datatracker.ietf.org/doc/rfc9923/
  */
 export const FNV_MASK_64 = 0xffffffffffffffffn;
 
@@ -25,7 +18,6 @@ export const FNV_MASK_64 = 0xffffffffffffffffn;
  *
  * note: "forwarded" is the standardized header. "x-forwarded-for" is de facto.
  *
- * @see https://datatracker.ietf.org/doc/html/rfc7239
  */
 export const DEFAULT_IP_HEADERS = [
   'cf-connecting-ip',
@@ -42,6 +34,5 @@ export const DEFAULT_IP_HEADERS = [
  *
  * "unknown" is explicitly defined by rfc 7239 for forwarded.
  *
- * @see https://datatracker.ietf.org/doc/html/rfc7239
  */
 export const INVALID_IP_TOKENS = new Set(['', 'unknown', 'null', 'none']);
