@@ -1,4 +1,4 @@
-import type { FingerprintTraits } from './types';
+import type { FingerprintTraits, Maybe, Optional } from './types';
 
 /**
  * anchor is explicit and non-mixed (actor OR ip).
@@ -18,4 +18,10 @@ export function buildParts(traits: FingerprintTraits): readonly string[] {
   }
 
   return segments;
+}
+
+export function normalizeStr(value: Maybe<string>): Optional<string> {
+  if (value === undefined || value === null) return null;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
 }

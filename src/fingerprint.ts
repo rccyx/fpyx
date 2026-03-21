@@ -4,22 +4,14 @@ import type {
   FingerprintResult,
   FingerprintTraits,
   HashFunction,
-  Optional,
 } from './types';
 import { DEFAULT_IP_HEADERS } from './constants';
 import { fnv1a64Hex } from './hash';
 import { extractClientIp } from './ip-extraction';
-import { buildParts } from './utils';
+import { buildParts, normalizeStr } from './utils';
 import { normalizeIpForBucket } from './ip-subnet';
-import { Maybe } from './types';
 
 const textEncoder = new TextEncoder();
-
-function normalizeStr(value: Maybe<string>): Optional<string> {
-  if (value === undefined || value === null) return null;
-  const trimmed = value.trim();
-  return trimmed === '' ? null : trimmed;
-}
 
 /**
  * Generates a cryptographically-stable, abuse-resistant identity fingerprint for HTTP requests.
